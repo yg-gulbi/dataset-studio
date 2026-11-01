@@ -28,17 +28,5 @@ if [ -n "$EXISTING_PID" ]; then
   sleep 1
 fi
 
-# Automatically open default browser after server binds
-(
-  sleep 1.2
-  if which xdg-open >/dev/null 2>&1; then
-    xdg-open "http://localhost:${PORT}" >/dev/null 2>&1 || true
-  elif which google-chrome >/dev/null 2>&1; then
-    google-chrome "http://localhost:${PORT}" >/dev/null 2>&1 || true
-  elif which firefox >/dev/null 2>&1; then
-    firefox "http://localhost:${PORT}" >/dev/null 2>&1 || true
-  fi
-) &
-
 exec python3 server.py
 
