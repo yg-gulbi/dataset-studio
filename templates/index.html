@@ -482,8 +482,11 @@
     </div>
   </main>
 
-  <!-- Right Inspector & Management Panel (IMAGE, OBJECT, OBJECT TAG, CLASS PALETTE) -->
-  <aside class="studio-right-panel">
+  <!-- Right Resizer Splitter -->
+  <div id="resizerRight" class="resizer" style="width:4px; background:var(--border); cursor:col-resize;"></div>
+
+  <!-- Right Inspector & Management Panel -->
+  <aside id="sidebarRight" class="studio-right-panel">
     <!-- Section 1: IMAGE (Thumbnail Gallery List) -->
     <div class="panel-card-section">
       <div class="panel-card-header">
@@ -492,7 +495,10 @@
       </div>
       <div class="img-search-bar">
         <input type="text" id="searchInput" class="img-search-input" placeholder="Search image (Enter)..." onkeydown="if(event.key==='Enter')loadImages()">
-        <div class="img-filter-row">
+        <div class="img-filter-row" style="grid-template-columns: 1fr 1fr 1fr;">
+          <select id="filterClass" class="img-filter-select" onchange="loadImages()">
+            <option value="">All Class</option>
+          </select>
           <select id="filterSplit" class="img-filter-select" onchange="loadImages()">
             <option value="all">All Split</option>
             <option value="train">Train</option>
@@ -528,6 +534,7 @@
         <span id="selPolyBadge" class="panel-card-badge">None</span>
       </div>
       <div class="tag-section-body">
+        <select id="drawClassSelect" style="display:none;"></select>
         <div class="tag-field-row">
           <span class="tag-label">Class</span>
           <select id="selPolyClassPicker" class="tag-value-select" onchange="changeSelectedPolyClass(this.value)">
@@ -828,7 +835,9 @@
 
 
 <script>
-// State
+// =========================================================================
+// Global State & Configuration
+// =========================================================================
 let datasets = [];
 let currentDataset = null;
 let classes = {};
@@ -857,6 +866,8 @@ let spaceDown = false;
 const canvas = document.getElementById('editorCanvas');
 const ctx = canvas.getContext('2d');
 const workspace = document.getElementById('canvasWorkspace');
+const rulerH = document.getElementById('rulerHorizontal');
+const rulerV = document.getElementById('rulerVertical');
 
 // Tasks & Explorer
 let activeTaskId = null;
@@ -864,9 +875,11 @@ let taskPollInterval = null;
 let createdDatasetPath = null;
 let currentFsData = null;
 let selectedFsPath = null;
+let isPathInputDirect = false;
+let availableModelsList = [];
 
 // =========================================================================
-// Initialization & Resizers Setup
+// App Startup & Event Listeners
 // =========================================================================
 window.addEventListener('DOMContentLoaded', async () => {
   setupResizers();
@@ -876,36 +889,56 @@ window.addEventListener('DOMContentLoaded', async () => {
 
 function showToast(msg, duration = 2000) {
   const toast = document.getElementById('toast');
+  if (!toast) return;
   toast.textContent = msg;
   toast.classList.add('show');
   setTimeout(() => toast.classList.remove('show'), duration);
 }
 
+function logAction(msg) {
+  const el = document.getElementById('bottomActionLog');
+  if (el) {
+    const time = new Date().toLocaleTimeString();
+    el.textContent = `🕒 (${time}) ${msg}`;
+  }
+}
+
+function toggleFullscreen() {
+  if (!document.fullscreenElement) {
+    document.documentElement.requestFullscreen().catch(() => {});
+  } else {
+    document.exitFullscreen().catch(() => {});
+  }
+}
+
+function showCheatsheet() {
+  alert(
+    "⌨️ 단축키 안내:\n\n" +
+    "• [Space + 드래그]: 캔버스 자유 이동 (Pan)\n" +
+    "• [마우스 휠]: 줌 인 / 줌 아웃\n" +
+    "• [E]: 그리기(Draw) 모드 토글 (연속 2회 누르면 클래스 선택창)\n" +
+    "• [0~9]: 그리기 모드 시 해당 숫자 클래스 즉시 선택\n" +
+    "• [Enter]: 그리기 완료(닫기) 또는 [COMPLETE] 다음 이미지 이동\n" +
+    "• [Esc]: 그리기 취소 또는 선택 해제\n" +
+    "• [Q / Del]: 선택된 폴리곤 삭제\n" +
+    "• [A / ←]: 이전 이미지\n" +
+    "• [D / →]: 다음 이미지\n" +
+    "• [S / Ctrl+S]: 현재 변경사항 수동 저장\n" +
+    "• [F]: 이미지 화면에 맞춤 (Fit to Screen)"
+  );
+}
+
 // =========================================================================
-// Draggable Panel Resizers (Left & Right Splitters)
+// Draggable Panel Resizers
 // =========================================================================
 function setupResizers() {
-  const sidebarLeft = document.getElementById('sidebarLeft');
-  const resizerLeft = document.getElementById('resizerLeft');
   const sidebarRight = document.getElementById('sidebarRight');
   const resizerRight = document.getElementById('resizerRight');
+  if (!sidebarRight || !resizerRight) return;
 
-  // Restore saved widths
-  const savedLeftW = localStorage.getItem('bw_sidebar_left_w');
   const savedRightW = localStorage.getItem('bw_sidebar_right_w');
-  if (savedLeftW) sidebarLeft.style.width = `${savedLeftW}px`;
   if (savedRightW) sidebarRight.style.width = `${savedRightW}px`;
 
-  // Left Resizer
-  let isResizingLeft = false;
-  resizerLeft.addEventListener('mousedown', (e) => {
-    isResizingLeft = true;
-    resizerLeft.classList.add('dragging');
-    document.body.style.cursor = 'col-resize';
-    e.preventDefault();
-  });
-
-  // Right Resizer
   let isResizingRight = false;
   resizerRight.addEventListener('mousedown', (e) => {
     isResizingRight = true;
@@ -915,90 +948,31 @@ function setupResizers() {
   });
 
   window.addEventListener('mousemove', (e) => {
-    if (isResizingLeft) {
-      const newW = Math.max(180, Math.min(600, e.clientX));
-      sidebarLeft.style.width = `${newW}px`;
-      localStorage.setItem('bw_sidebar_left_w', newW);
-      resizeCanvasOnly();
-    } else if (isResizingRight) {
-      const newW = Math.max(180, Math.min(600, window.innerWidth - e.clientX));
-      sidebarRight.style.width = `${newW}px`;
-      localStorage.setItem('bw_sidebar_right_w', newW);
-      resizeCanvasOnly();
+    if (isResizingRight) {
+      const newW = window.innerWidth - e.clientX;
+      if (newW >= 240 && newW <= 650) {
+        sidebarRight.style.width = `${newW}px`;
+        localStorage.setItem('bw_sidebar_right_w', newW);
+        resetViewFit();
+        draw();
+      }
     }
   });
 
   window.addEventListener('mouseup', () => {
-    if (isResizingLeft || isResizingRight) {
-      isResizingLeft = false;
+    if (isResizingRight) {
       isResizingRight = false;
-      resizerLeft.classList.remove('dragging');
       resizerRight.classList.remove('dragging');
       document.body.style.cursor = 'default';
-      resizeCanvasOnly();
+      resetViewFit();
+      draw();
     }
   });
 }
 
-function resizeCanvasOnly() {
-  if (!workspace || !canvas) return;
-  const w = workspace.clientWidth;
-  const h = workspace.clientHeight;
-  if (canvas.width !== w || canvas.height !== h) {
-    canvas.width = w;
-    canvas.height = h;
-    draw();
-  }
-}
-
-// =========================================================================
-// Topbar Menus
-// =========================================================================
-function toggleMenu(menuId, event) {
-  event.stopPropagation();
-  const target = document.getElementById(menuId);
-  const isOpen = target.classList.contains('open');
-  closeAllMenus();
-  if (!isOpen) {
-    target.classList.add('open');
-  }
-}
-
-function closeAllMenus() {
-  document.querySelectorAll('.menu-group').forEach(m => m.classList.remove('open'));
-  const modeMenu = document.getElementById('blenderModeMenu');
-  if (modeMenu) modeMenu.style.display = 'none';
-}
-
-function toggleModeDropdown(event) {
-  event.stopPropagation();
-  const menu = document.getElementById('blenderModeMenu');
-  if (menu) {
-    const isShown = menu.style.display === 'block';
-    closeAllMenus();
-    menu.style.display = isShown ? 'none' : 'block';
-  }
-}
-
-function switchWorkspaceTab(tab) {
-  document.querySelectorAll('.ws-tab').forEach(el => el.classList.remove('active'));
-  if (window.event && window.event.target && !window.event.target.classList.contains('ws-tab-add')) {
-    window.event.target.classList.add('active');
-  }
-}
-
-function openCreateTabDirect(tabKey) {
-  closeAllMenus();
-  openCreateModal();
-  switchCreateTab(tabKey);
-}
-
-// =========================================================================
 // =========================================================================
 // Modern Desktop Universal Folder Explorer
 // =========================================================================
-let isPathInputDirect = false;
-
 function toggleDirectPathInput() {
   const breadcrumbsEl = document.getElementById('explorerBreadcrumbs');
   const directInputEl = document.getElementById('explorerPathInput');
@@ -1006,28 +980,31 @@ function toggleDirectPathInput() {
 
   isPathInputDirect = !isPathInputDirect;
   if (isPathInputDirect) {
-    breadcrumbsEl.style.display = 'none';
-    directInputEl.style.display = 'block';
-    directInputEl.focus();
-    directInputEl.select();
-    btnToggle.innerHTML = '<span>🧭 빵부스러기</span>';
+    if (breadcrumbsEl) breadcrumbsEl.style.display = 'none';
+    if (directInputEl) {
+      directInputEl.style.display = 'block';
+      directInputEl.focus();
+      directInputEl.select();
+    }
+    if (btnToggle) btnToggle.innerHTML = '<span>🧭 탐색 바</span>';
   } else {
-    breadcrumbsEl.style.display = 'flex';
-    directInputEl.style.display = 'none';
-    btnToggle.innerHTML = '<span>✏️ 직접 입력</span>';
+    if (breadcrumbsEl) breadcrumbsEl.style.display = 'flex';
+    if (directInputEl) directInputEl.style.display = 'none';
+    if (btnToggle) btnToggle.innerHTML = '<span>✏️ 직접 입력</span>';
   }
 }
 
 function openFolderModal(initialPath) {
-  closeAllMenus();
-  document.getElementById('folderModal').classList.add('open');
+  const modal = document.getElementById('folderModal');
+  if (modal) modal.classList.add('open');
   loadRecentFolders();
   const target = initialPath || (currentDataset && currentDataset.path) || '/home/yg-gulbi/workspace';
   browseFs(target);
 }
 
 function closeFolderModal() {
-  document.getElementById('folderModal').classList.remove('open');
+  const modal = document.getElementById('folderModal');
+  if (modal) modal.classList.remove('open');
 }
 
 async function loadRecentFolders() {
@@ -1075,21 +1052,23 @@ async function loadRecentFolders() {
         listEl.appendChild(card);
       }
 
-      // 2. Canvas Welcome Overlay Card
+      // 2. Welcome Overlay Shortcut Item
       if (noDirRecentsEl) {
         const item = document.createElement('div');
-        item.style.cssText = 'display:flex; justify-content:space-between; align-items:center; padding:6px 10px; background:#1c1c1c; border:1px solid #333; border-radius:4px; cursor:pointer; font-size:0.78rem; transition:all 0.12s;';
+        item.className = 'no-dir-recent-item';
         item.innerHTML = `
-          <div style="font-weight:600; color:#ddd; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">📁 ${rf.name}</div>
-          <div style="font-size:0.7rem; color:var(--text-muted); font-family:monospace; margin-left:12px;">${rf.path}</div>
+          <div class="no-dir-recent-name">📁 ${rf.name}</div>
+          <div class="no-dir-recent-path">${rf.path}</div>
         `;
-        item.onmouseover = () => { item.style.borderColor = '#8bb2eb'; item.style.background = '#252525'; };
-        item.onmouseout = () => { item.style.borderColor = '#333'; item.style.background = '#1c1c1c'; };
-        item.onclick = () => switchDataset(rf.path);
+        item.onclick = () => {
+          switchDataset(rf.path);
+        };
         noDirRecentsEl.appendChild(item);
       }
     });
-  } catch (err) {}
+  } catch (err) {
+    console.error('loadRecentFolders error:', err);
+  }
 }
 
 function renderBreadcrumbs(fullPath) {
@@ -1097,35 +1076,34 @@ function renderBreadcrumbs(fullPath) {
   if (!container) return;
   container.innerHTML = '';
 
-  const cleanPath = (fullPath || '').trim();
-  const parts = cleanPath.split('/').filter(Boolean);
-
-  // Root crumb
-  const rootCrumb = document.createElement('span');
-  rootCrumb.className = `breadcrumb-segment ${parts.length === 0 ? 'current' : ''}`;
-  rootCrumb.innerHTML = '📁 /';
-  rootCrumb.onclick = () => browseFs('/');
-  container.appendChild(rootCrumb);
-
+  const parts = fullPath.split('/').filter(Boolean);
   let accumulated = '';
-  parts.forEach((part, idx) => {
-    accumulated += '/' + part;
-    const isLast = (idx === parts.length - 1);
+
+  const rootItem = document.createElement('div');
+  rootItem.className = 'breadcrumb-item';
+  rootItem.textContent = '/';
+  rootItem.onclick = () => browseFs('/');
+  container.appendChild(rootItem);
+
+  parts.forEach((p, idx) => {
+    accumulated += '/' + p;
+    const currAcc = accumulated;
 
     const sep = document.createElement('span');
     sep.className = 'breadcrumb-separator';
     sep.textContent = '>';
     container.appendChild(sep);
 
-    const crumb = document.createElement('span');
-    crumb.className = `breadcrumb-segment ${isLast ? 'current' : ''}`;
-    crumb.textContent = part;
-    const targetPath = accumulated;
-    crumb.onclick = () => browseFs(targetPath);
-    container.appendChild(crumb);
+    const item = document.createElement('div');
+    item.className = 'breadcrumb-item';
+    if (idx === parts.length - 1) {
+      item.classList.add('active');
+    }
+    item.textContent = p;
+    item.onclick = () => browseFs(currAcc);
+    container.appendChild(item);
   });
 
-  // Scroll to rightmost
   container.scrollLeft = container.scrollWidth;
 }
 
@@ -1137,11 +1115,13 @@ async function browseFs(path) {
     const currPath = currentFsData.current_path;
     selectedFsPath = currPath;
 
-    document.getElementById('explorerPathInput').value = currPath;
+    const pathInput = document.getElementById('explorerPathInput');
+    if (pathInput) pathInput.value = currPath;
     renderBreadcrumbs(currPath);
     updateFsFooter(currentFsData);
 
     const gridEl = document.getElementById('explorerSubdirs');
+    if (!gridEl) return;
     gridEl.innerHTML = '';
 
     // Up directory item
@@ -1211,7 +1191,9 @@ async function browseFs(path) {
 
       gridEl.appendChild(tile);
     });
-  } catch (err) {}
+  } catch (err) {
+    console.error('browseFs error:', err);
+  }
 }
 
 function browseUpFolder() {
@@ -1256,7 +1238,10 @@ function updateFsFooter(data) {
 }
 
 async function confirmOpenFolder(initIfRaw = false) {
-  if (!selectedFsPath) return;
+  if (!selectedFsPath) {
+    alert('열고자 하는 디렉토리를 먼저 선택해주세요.');
+    return;
+  }
   try {
     showToast('디렉토리 여는 중...');
     const res = await fetch('/api/open_folder', {
@@ -1271,44 +1256,29 @@ async function confirmOpenFolder(initIfRaw = false) {
     if (data.success) {
       closeFolderModal();
       showToast('작업 디렉토리 열기 완료');
-      await loadDatasetList();
+      await refreshActiveDataset();
     } else {
       alert(data.error || '폴더 열기 실패');
     }
-  } catch (err) {}
+  } catch (err) {
+    console.error('confirmOpenFolder error:', err);
+    alert('폴더 열기 중 오류가 발생했습니다: ' + err.message);
+  }
 }
 
 // =========================================================================
-// Dataset Management
+// Dataset Management & Switching
 // =========================================================================
 async function loadDatasetList() {
   try {
     const res = await fetch('/api/datasets');
     const data = await res.json();
     datasets = data.datasets || [];
-
-    const sel = document.getElementById('datasetSelect');
-    sel.innerHTML = '';
-
-    const hasActive = datasets.some(d => d.is_active);
-    if (!hasActive) {
-      const emptyOpt = document.createElement('option');
-      emptyOpt.value = '';
-      emptyOpt.textContent = '선택된 디렉토리 없음';
-      emptyOpt.selected = true;
-      sel.appendChild(emptyOpt);
-    }
-
-    datasets.forEach(d => {
-      const opt = document.createElement('option');
-      opt.value = d.path;
-      opt.textContent = `${d.name} (${d.total_images.toLocaleString()}장, ${d.num_classes}cls)`;
-      if (d.is_active) opt.selected = true;
-      sel.appendChild(opt);
-    });
-
     await refreshActiveDataset();
-  } catch (err) {}
+  } catch (err) {
+    console.error('loadDatasetList error:', err);
+    await refreshActiveDataset();
+  }
 }
 
 async function switchDataset(path) {
@@ -1327,7 +1297,9 @@ async function switchDataset(path) {
     } else {
       alert(data.error || '전환 실패');
     }
-  } catch (err) {}
+  } catch (err) {
+    console.error('switchDataset error:', err);
+  }
 }
 
 function clearCanvasAndInspector() {
@@ -1340,14 +1312,19 @@ function clearCanvasAndInspector() {
   if (canvas && ctx) {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
   }
-  const selDetails = document.getElementById('selPolyDetails');
-  if (selDetails) selDetails.style.display = 'none';
   const selBadge = document.getElementById('selPolyBadge');
-  if (selBadge) selBadge.textContent = '없음';
+  if (selBadge) selBadge.textContent = 'None';
+  const selSize = document.getElementById('selPolySize');
+  if (selSize) selSize.textContent = '-';
+  const selWarn = document.getElementById('selPolyWarning');
+  if (selWarn) selWarn.style.display = 'none';
+
   const polyList = document.getElementById('polyLayersList');
-  if (polyList) polyList.innerHTML = '<div style="padding:10px; color:var(--text-muted); font-size:0.75rem;">폴리곤 없음</div>';
+  if (polyList) polyList.innerHTML = '<div style="padding:14px 10px; color:var(--text-muted); font-size:0.75rem; text-align:center;">선택된 디렉토리가 없습니다.</div>';
   const polyCount = document.getElementById('polyCountBadge');
-  if (polyCount) polyCount.textContent = '0개';
+  if (polyCount) polyCount.textContent = '0';
+  const sizeBadge = document.getElementById('viewportSizeBadge');
+  if (sizeBadge) sizeBadge.textContent = 'Size : 0px * 0px';
 }
 
 async function refreshActiveDataset() {
@@ -1357,25 +1334,23 @@ async function refreshActiveDataset() {
     classes = currentDataset.classes || {};
 
     const hasDataset = !!(currentDataset && currentDataset.path);
-    const titleEl = document.getElementById('dsSummaryTitle');
-    const statsEl = document.getElementById('dsSummaryStats');
-    const pathEl = document.getElementById('statusWorkspacePath');
+    const taskPill = document.getElementById('headerTaskPill');
+    const bImgName = document.getElementById('bottomImgName');
     const noDirOverlay = document.getElementById('noDirOverlay');
 
     if (!hasDataset) {
-      if (titleEl) titleEl.textContent = '선택된 디렉토리 없음';
-      if (statsEl) statsEl.textContent = '0장 / 0cls';
-      if (pathEl) pathEl.textContent = '선택된 디렉토리 없음';
+      if (taskPill) taskPill.textContent = '선택된 디렉토리 없음';
+      if (bImgName) bImgName.textContent = 'No directory selected';
       if (noDirOverlay) noDirOverlay.style.display = 'flex';
 
+      loadRecentFolders();
       renderClassPalette();
       populateClassDropdowns();
 
-      // Clear image list & canvas
       const imgListEl = document.getElementById('imageList');
       if (imgListEl) {
         imgListEl.innerHTML = `
-          <div style="padding:32px 14px; text-align:center; color:var(--text-muted); font-size:0.8rem; line-height:1.5;">
+          <div style="padding:32px 14px; text-align:center; color:var(--text-muted); font-size:0.8rem; line-height:1.6;">
             선택된 디렉토리가 없습니다.<br><br>
             <button class="tool-btn" style="display:inline-flex; margin:0 auto; background:var(--accent); color:#fff; font-weight:600;" onclick="openFolderModal()">
               📂 작업 디렉토리 선택
@@ -1383,41 +1358,45 @@ async function refreshActiveDataset() {
           </div>
         `;
       }
-      document.getElementById('imgCountBadge').textContent = '0장';
+      const imgBadge = document.getElementById('headerImgBadge');
+      if (imgBadge) imgBadge.textContent = '0-0 [0]';
       clearCanvasAndInspector();
 
-      // 디렉토리가 선택되지 않은 채 처음 진입 시 자동으로 모달 오픈!
-      openFolderModal();
+      // Open modal automatically on clean start if closed
+      const folderModalEl = document.getElementById('folderModal');
+      if (folderModalEl && !folderModalEl.classList.contains('open')) {
+        openFolderModal();
+      }
       return;
     }
 
     if (noDirOverlay) noDirOverlay.style.display = 'none';
-    if (titleEl) titleEl.textContent = currentDataset.name;
-    const taskPill = document.getElementById('headerTaskName');
-    if (taskPill) taskPill.textContent = currentDataset.name || '선택된 디렉토리 없음';
-    const bImgName = document.getElementById('bottomImgName');
-    if (bImgName && currentDataset.name) bImgName.textContent = currentDataset.name;
-    if (statsEl) statsEl.textContent = `${currentDataset.total_images.toLocaleString()}장 / ${Object.keys(classes).length}cls`;
-    if (pathEl) pathEl.textContent = currentDataset.path;
+    if (taskPill) taskPill.textContent = currentDataset.name;
+    if (bImgName) bImgName.textContent = currentDataset.name;
+
+    logAction(`Active dataset: ${currentDataset.name} (${currentDataset.total_images} images, ${Object.keys(classes).length} classes)`);
 
     renderClassPalette();
     populateClassDropdowns();
-
     await loadImages();
-  } catch (err) {}
+  } catch (err) {
+    console.error('refreshActiveDataset error:', err);
+  }
 }
 
 function renderClassPalette() {
   const palEl = document.getElementById('classPalette');
+  if (!palEl) return;
   palEl.innerHTML = '';
   const cids = Object.keys(classes);
-  document.getElementById('clsCountBadge').textContent = `${cids.length}개`;
+  const badgeEl = document.getElementById('clsCountBadge');
+  if (badgeEl) badgeEl.textContent = `${cids.length} classes`;
 
   if (cids.length === 0) {
     palEl.innerHTML = `
-      <div style="padding:16px 8px; text-align:center; color:var(--text-muted); font-size:0.75rem; line-height:1.4;">
-        <span style="display:block; margin-bottom:8px;">정의된 클래스가 없습니다.</span>
-        <button class="tool-btn" style="margin:0 auto; padding:4px 10px; font-size:0.72rem; justify-content:center;" onclick="openClassModal()">
+      <div style="grid-column: 1/-1; padding:14px 8px; text-align:center; color:var(--text-muted); font-size:0.75rem; line-height:1.5;">
+        <span>정의된 클래스가 없습니다.</span><br>
+        <button class="tool-btn" style="margin:8px auto 0; padding:4px 10px; font-size:0.72rem; justify-content:center;" onclick="openClassModal()">
           ⚙️ 클래스 정의 / data.yaml 생성
         </button>
       </div>
@@ -1428,19 +1407,14 @@ function renderClassPalette() {
   for (const [cid, info] of Object.entries(classes)) {
     const chip = document.createElement('div');
     chip.className = 'class-chip';
-    const label = info.label_ko || info.name || `클래스 ${cid}`;
+    const label = info.label_ko || info.name || `Class ${cid}`;
+    const name = info.name || `class_${cid}`;
     chip.innerHTML = `
-      <span class="class-chip-dot" style="background:${info.color || '#00bfa5'};"></span>
-      <span style="color:#ddd; font-weight:600;">[${cid}] ${label}</span>
+      <span class="color-dot" style="background:${info.color || '#38BDF8'};"></span>
+      <span class="chip-name" title="[${cid}] ${label} (${name})">[${cid}] ${label}</span>
     `;
     chip.onclick = () => {
-      document.querySelectorAll('.class-chip').forEach(c => c.classList.remove('active'));
-      chip.classList.add('active');
-      const selPicker = document.getElementById('selPolyClassPicker');
-      if (selPicker) selPicker.value = cid;
-      if (selectedPolyIndex >= 0) changeSelectedPolyClass(cid);
-      showToast(`선택 클래스: [${cid}] ${label}`);
-      logAction(`Selected class [${cid}] ${label}`);
+      openClassModal();
     };
     palEl.appendChild(chip);
   }
@@ -1448,61 +1422,89 @@ function renderClassPalette() {
 
 function populateClassDropdowns() {
   const fCls = document.getElementById('filterClass');
-  const dCls = document.getElementById('drawClassSelect');
-  const sCls = document.getElementById('selPolyClassPicker');
-
-  fCls.innerHTML = '<option value="">모든 클래스</option>';
-  dCls.innerHTML = '';
-  sCls.innerHTML = '';
-
-  const cids = Object.keys(classes);
-  if (cids.length === 0) {
-    dCls.innerHTML = '<option value="">(클래스 없음)</option>';
-    sCls.innerHTML = '<option value="">(클래스 없음)</option>';
-    return;
+  if (fCls) {
+    const prevVal = fCls.value;
+    fCls.innerHTML = '<option value="">All Class</option>';
+    for (const [cid, info] of Object.entries(classes)) {
+      const opt = document.createElement('option');
+      opt.value = cid;
+      opt.textContent = `[${cid}] ${info.label_ko || info.name}`;
+      fCls.appendChild(opt);
+    }
+    fCls.value = prevVal;
   }
 
-  for (const [cid, info] of Object.entries(classes)) {
-    const label = info.label_ko || info.name || `클래스 ${cid}`;
-    const name = info.name || `class_${cid}`;
-    fCls.add(new Option(`[${cid}] ${label} (${name})`, cid));
-    dCls.add(new Option(`[${cid}] ${label}`, cid));
-    sCls.add(new Option(`[${cid}] ${label} (${name})`, cid));
+  const dCls = document.getElementById('drawClassSelect');
+  if (dCls) {
+    const prevVal = dCls.value;
+    dCls.innerHTML = '';
+    for (const [cid, info] of Object.entries(classes)) {
+      const opt = document.createElement('option');
+      opt.value = cid;
+      opt.textContent = `[${cid}] ${info.label_ko || info.name}`;
+      dCls.appendChild(opt);
+    }
+    if (prevVal && classes[prevVal]) dCls.value = prevVal;
+  }
+
+  const sel = document.getElementById('selPolyClassPicker');
+  if (sel) {
+    const prevVal = sel.value;
+    sel.innerHTML = '';
+    for (const [cid, info] of Object.entries(classes)) {
+      const opt = document.createElement('option');
+      opt.value = cid;
+      opt.textContent = `● [${cid}] ${info.label_ko || info.name}`;
+      sel.appendChild(opt);
+    }
+    if (prevVal && classes[prevVal]) sel.value = prevVal;
   }
 }
 
 // =========================================================================
-// Image Explorer
+// Image Explorer & Filtering
 // =========================================================================
 async function loadImages() {
-  const fCls = document.getElementById('filterClass').value;
-  const fSplit = document.getElementById('filterSplit').value;
-  const fStat = document.getElementById('filterStatus').value;
-  const q = document.getElementById('searchInput').value;
+  const fClsEl = document.getElementById('filterClass');
+  const fSplitEl = document.getElementById('filterSplit');
+  const fStatEl = document.getElementById('filterStatus');
+  const qEl = document.getElementById('searchInput');
+
+  const fCls = fClsEl ? fClsEl.value : '';
+  const fSplit = fSplitEl ? fSplitEl.value : 'all';
+  const fStat = fStatEl ? fStatEl.value : 'all';
+  const q = qEl ? qEl.value.trim() : '';
 
   const params = new URLSearchParams();
   if (fCls !== '') params.set('class_id', fCls);
   if (fStat !== 'all') params.set('status', fStat);
   if (q !== '') params.set('query', q);
 
-  const res = await fetch(`/api/images?${params.toString()}`);
-  const data = await res.json();
-  images = data.items || [];
-  
-  if (fSplit !== 'all') {
-    images = images.filter(it => it.split === fSplit);
-  }
+  try {
+    const res = await fetch(`/api/images?${params.toString()}`);
+    const data = await res.json();
+    images = data.items || [];
+    
+    if (fSplit !== 'all') {
+      images = images.filter(it => it.split === fSplit);
+    }
 
-  renderImageList();
+    renderImageList();
 
-  if (images.length > 0) {
-    selectImage(0);
-  } else {
-    currentImgIndex = -1;
-    currentAnnotation = null;
-    currentImageBitmap = null;
-    document.getElementById('currentFileBadge').textContent = '이미지가 없습니다.';
-    draw();
+    if (images.length > 0) {
+      selectImage(0);
+    } else {
+      currentImgIndex = -1;
+      currentAnnotation = null;
+      currentImageBitmap = null;
+      const bImg = document.getElementById('bottomImgName');
+      if (bImg) bImg.textContent = 'No images match criteria';
+      const imgBadge = document.getElementById('headerImgBadge');
+      if (imgBadge) imgBadge.textContent = '0-0 [0]';
+      draw();
+    }
+  } catch (err) {
+    console.error('loadImages error:', err);
   }
 }
 
@@ -1513,37 +1515,36 @@ function renderImageList() {
 
   const imgBadge = document.getElementById('headerImgBadge');
   if (imgBadge) {
-    const currNum = images.length > 0 ? (currentImgIndex + 1) : 0;
-    imgBadge.textContent = `${currNum}-${images.length} [${images.length}]`;
+    const total = images.length;
+    imgBadge.textContent = total > 0 ? `1-${Math.min(10, total)} [${total}]` : '0-0 [0]';
   }
 
   if (images.length === 0) {
-    listEl.innerHTML = '<div style="padding:15px; text-align:center; color:var(--text-muted); font-size:0.75rem;">검색 결과가 없습니다.</div>';
+    listEl.innerHTML = '<div style="padding:28px 10px; text-align:center; color:var(--text-muted); font-size:0.75rem;">검색 결과가 없습니다.</div>';
     return;
   }
 
   images.forEach((item, idx) => {
     const el = document.createElement('div');
-    el.className = `img-list-item ${idx === currentImgIndex ? 'active' : ''}`;
+    el.className = `image-item-card ${idx === currentImgIndex ? 'active' : ''}`;
     el.id = `img-item-${idx}`;
-    el.onclick = () => selectImage(idx);
 
-    const subpath = item.split === '.' ? item.filename : `${item.split}/${item.filename}`;
-    const thumbUrl = `/api/image/${encodeURIComponent(subpath)}`;
-    const splitLabel = item.split === '.' ? 'ROOT' : item.split.toUpperCase();
+    const splitPath = item.split === '.' ? item.filename : `${item.split}/${item.filename}`;
+    const thumbUrl = `/api/image/${splitPath}`;
 
     el.innerHTML = `
-      <div class="img-thumb-box">
-        <img src="${thumbUrl}" alt="thumb" loading="lazy" onerror="this.parentElement.innerHTML='🖼️'">
-      </div>
-      <div class="img-item-meta">
-        <div class="img-item-name" title="${item.filename}">${item.filename}</div>
-        <div class="img-item-sub">
-          <span>${splitLabel} • ${item.poly_count}obj</span>
-          <span class="img-item-status-icon">${item.is_edited ? '✅' : '🔒'}</span>
+      <img src="${thumbUrl}" class="item-thumb" loading="lazy" alt="thumb" onerror="this.style.display='none'">
+      <div class="item-info">
+        <div class="item-name" title="${item.filename}">${item.filename}</div>
+        <div class="item-meta">
+          <span class="meta-tag tag-split">${item.split}</span>
+          <span class="meta-tag">${item.poly_count} objs</span>
+          ${item.is_edited ? '<span class="meta-tag" style="background:#00bfa5; color:#fff;">✓</span>' : ''}
         </div>
       </div>
     `;
+
+    el.onclick = () => selectImage(idx);
     listEl.appendChild(el);
   });
 }
@@ -1555,13 +1556,6 @@ async function selectImage(idx) {
       if (autoSaveTimeout) clearTimeout(autoSaveTimeout);
       await saveCurrent(true);
       updateItemBadge(currentImgIndex, true);
-    } else if (!prevItem.is_edited) {
-      try {
-        const sub = prevItem.split === '.' ? prevItem.stem : `${prevItem.split}/${prevItem.stem}`;
-        await fetch(`/api/mark_reviewed/${sub}`, { method: 'POST' });
-        prevItem.is_edited = true;
-        updateItemBadge(currentImgIndex, true);
-      } catch (err) {}
     }
   }
 
@@ -1569,7 +1563,7 @@ async function selectImage(idx) {
   const item = images[idx];
   if (!item) return;
 
-  document.querySelectorAll('.img-list-item, .image-item').forEach(el => el.classList.remove('active'));
+  document.querySelectorAll('.image-item-card').forEach(el => el.classList.remove('active'));
   const activeEl = document.getElementById(`img-item-${idx}`);
   if (activeEl) {
     activeEl.classList.add('active');
@@ -1577,38 +1571,42 @@ async function selectImage(idx) {
   }
 
   const splitPath = item.split === '.' ? item.filename : `${item.split}/${item.filename}`;
-  const currBadge = document.getElementById('currentFileBadge');
-  if (currBadge) currBadge.textContent = `[${idx + 1}/${images.length}] ${splitPath}`;
   const bImg = document.getElementById('bottomImgName');
-  if (bImg) bImg.textContent = splitPath;
-  logAction(`Loaded [${item.filename}] (${idx + 1}/${images.length})`);
+  if (bImg) bImg.textContent = `[${idx + 1}/${images.length}] ${splitPath}`;
+
   setUnsaved(false);
   selectedPolyIndex = -1;
+  selectedVertexIndex = -1;
   drawingPoints = [];
 
-  const sub = item.split === '.' ? item.stem : `${item.split}/${item.stem}`;
-  const res = await fetch(`/api/annotation/${sub}`);
-  currentAnnotation = await res.json();
+  try {
+    const sub = item.split === '.' ? item.stem : `${item.split}/${item.stem}`;
+    const res = await fetch(`/api/annotation/${sub}`);
+    currentAnnotation = await res.json();
 
-  const imgUrl = `/api/image/${splitPath}`;
-  const img = new Image();
-  img.src = imgUrl;
-  await img.decode();
-  currentImageBitmap = img;
+    const imgUrl = `/api/image/${splitPath}`;
+    const img = new Image();
+    img.src = imgUrl;
+    await img.decode();
+    currentImageBitmap = img;
 
-  resetViewFit();
-  updateUI();
-  draw();
+    resetViewFit();
+    updateUI();
+    draw();
+  } catch (err) {
+    console.error('selectImage error:', err);
+  }
 }
 
 function updateItemBadge(idx, isEdited) {
   const el = document.getElementById(`img-item-${idx}`);
   if (el) {
     const metaEl = el.querySelector('.item-meta');
-    if (metaEl && isEdited && !metaEl.querySelector('.edit-tag')) {
+    if (metaEl && isEdited && !metaEl.querySelector('.tag-edited')) {
       const tag = document.createElement('span');
-      tag.className = 'edit-tag';
-      tag.textContent = '✓ 수정됨';
+      tag.className = 'meta-tag tag-edited';
+      tag.style.cssText = 'background:#00bfa5; color:#fff;';
+      tag.textContent = '✓';
       metaEl.appendChild(tag);
     }
   }
@@ -1622,39 +1620,75 @@ function nextImage() {
   if (currentImgIndex < images.length - 1) selectImage(currentImgIndex + 1);
 }
 
+async function completeAndNext() {
+  if (currentImgIndex < 0 || !images[currentImgIndex]) return;
+  const item = images[currentImgIndex];
+
+  try {
+    await saveCurrent(false);
+    const sub = item.split === '.' ? item.stem : `${item.split}/${item.stem}`;
+    await fetch(`/api/mark_reviewed/${sub}`, { method: 'POST' });
+    item.is_edited = true;
+    updateItemBadge(currentImgIndex, true);
+    showToast(`검수 완료: ${item.filename}`);
+    logAction(`COMPLETED & REVIEWED: ${item.filename}`);
+
+    if (currentImgIndex < images.length - 1) {
+      nextImage();
+    } else {
+      showToast('🎉 현재 데이터셋의 모든 이미지 검수가 완료되었습니다!');
+    }
+  } catch (err) {
+    console.error('completeAndNext error:', err);
+  }
+}
+
 // =========================================================================
-// Canvas Core & Transforms
+// Canvas Core, Transforms, and Interactive Rulers
 // =========================================================================
 function resetViewFit() {
-  if (!currentImageBitmap) return;
+  if (!workspace || !canvas) return;
   const w = workspace.clientWidth;
   const h = workspace.clientHeight;
   canvas.width = w;
   canvas.height = h;
 
+  if (rulerH) rulerH.width = w;
+  if (rulerV) rulerV.height = h;
+
+  if (!currentImageBitmap) {
+    drawRulers();
+    return;
+  }
+
   const imgW = currentImageBitmap.width;
   const imgH = currentImageBitmap.height;
-  const scale = Math.min((w - 30) / imgW, (h - 30) / imgH, 1.5);
+  const scale = Math.min((w - 40) / imgW, (h - 40) / imgH, 2.5);
   view.scale = scale;
   view.x = (w - imgW * scale) / 2;
   view.y = (h - imgH * scale) / 2;
+
   updateZoomInfo();
+  drawRulers();
 }
 
 function zoomIn() {
-  view.scale = Math.min(view.scale * 1.25, 10.0);
+  view.scale = Math.min(view.scale * 1.25, 12.0);
   updateZoomInfo();
   draw();
 }
 
 function zoomOut() {
-  view.scale = Math.max(view.scale / 1.25, 0.1);
+  view.scale = Math.max(view.scale / 1.25, 0.08);
   updateZoomInfo();
   draw();
 }
 
 function updateZoomInfo() {
-  document.getElementById('zoomInfo').textContent = `${Math.round(view.scale * 100)}%`;
+  const infoEl = document.getElementById('bottomScaleInfo');
+  if (infoEl) {
+    infoEl.textContent = `Image Scale : ${Math.round(view.scale * 100)}%`;
+  }
 }
 
 function screenToNorm(sx, sy) {
@@ -1673,79 +1707,49 @@ function normToScreen(nx, ny) {
   return [view.x + imgX * view.scale, view.y + imgY * view.scale];
 }
 
-// =========================================================================
-// Rendering Engine
-// =========================================================================
-
-// =========================================================================
-// Real-time Rulers & Dimension Badge Engine (Reference UI)
-// =========================================================================
 function drawRulers() {
-  const rulerH = document.getElementById('rulerHorizontal');
-  const rulerV = document.getElementById('rulerVertical');
-  if (!rulerH || !rulerV || !canvas) return;
+  if (rulerH) {
+    const hCtx = rulerH.getContext('2d');
+    const w = rulerH.width;
+    hCtx.clearRect(0, 0, w, 20);
+    hCtx.fillStyle = '#1c2024';
+    hCtx.fillRect(0, 0, w, 20);
+    hCtx.fillStyle = '#64748b';
+    hCtx.font = '9px monospace';
 
-  const rect = canvas.getBoundingClientRect();
-  const w = rect.width;
-  const h = rect.height;
-
-  if (rulerH.width !== w) rulerH.width = w;
-  if (rulerH.height !== 20) rulerH.height = 20;
-  if (rulerV.width !== 20) rulerV.width = 20;
-  if (rulerV.height !== h) rulerV.height = h;
-
-  const ctxH = rulerH.getContext('2d');
-  const ctxV = rulerV.getContext('2d');
-
-  ctxH.fillStyle = '#1c2024';
-  ctxH.fillRect(0, 0, w, 20);
-  ctxV.fillStyle = '#1c2024';
-  ctxV.fillRect(0, 0, 20, h);
-
-  if (!currentImageBitmap) return;
-
-  const originX = view.x;
-  const originY = view.y;
-  const scale = view.scale;
-
-  ctxH.strokeStyle = '#3b424a';
-  ctxH.fillStyle = '#718096';
-  ctxH.font = '9px ui-monospace, monospace';
-
-  ctxV.strokeStyle = '#3b424a';
-  ctxV.fillStyle = '#718096';
-  ctxV.font = '9px ui-monospace, monospace';
-
-  let step = 100;
-  if (scale < 0.25) step = 500;
-  else if (scale < 0.6) step = 200;
-  else if (scale > 2.0) step = 50;
-  else if (scale > 4.5) step = 20;
-
-  const maxImgW = currentImageBitmap.width;
-  for (let px = 0; px <= maxImgW; px += step) {
-    const sx = originX + px * scale;
-    if (sx < 0 || sx > w) continue;
-    ctxH.beginPath();
-    ctxH.moveTo(sx, 12);
-    ctxH.lineTo(sx, 20);
-    ctxH.stroke();
-    ctxH.fillText(px.toString(), sx + 2, 10);
+    const step = 50 * view.scale;
+    if (step > 15) {
+      const startX = view.x % step;
+      for (let x = startX; x < w; x += step) {
+        const val = Math.round((x - view.x) / view.scale);
+        if (val >= 0 && (!currentImageBitmap || val <= currentImageBitmap.width)) {
+          hCtx.fillRect(x, 12, 1, 8);
+          hCtx.fillText(val.toString(), x + 3, 11);
+        }
+      }
+    }
   }
 
-  const maxImgH = currentImageBitmap.height;
-  for (let py = 0; py <= maxImgH; py += step) {
-    const sy = originY + py * scale;
-    if (sy < 0 || sy > h) continue;
-    ctxV.beginPath();
-    ctxV.moveTo(12, sy);
-    ctxV.lineTo(20, sy);
-    ctxV.stroke();
-    ctxV.save();
-    ctxV.translate(10, sy - 2);
-    ctxV.rotate(-Math.PI / 2);
-    ctxV.fillText(py.toString(), 0, 0);
-    ctxV.restore();
+  if (rulerV) {
+    const vCtx = rulerV.getContext('2d');
+    const h = rulerV.height;
+    vCtx.clearRect(0, 0, 20, h);
+    vCtx.fillStyle = '#1c2024';
+    vCtx.fillRect(0, 0, 20, h);
+    vCtx.fillStyle = '#64748b';
+    vCtx.font = '9px monospace';
+
+    const step = 50 * view.scale;
+    if (step > 15) {
+      const startY = view.y % step;
+      for (let y = startY; y < h; y += step) {
+        const val = Math.round((y - view.y) / view.scale);
+        if (val >= 0 && (!currentImageBitmap || val <= currentImageBitmap.height)) {
+          vCtx.fillRect(12, y, 8, 1);
+          vCtx.fillText(val.toString(), 2, y - 2);
+        }
+      }
+    }
   }
 }
 
@@ -1753,83 +1757,41 @@ function updateSizeBadge() {
   const badge = document.getElementById('viewportSizeBadge');
   if (!badge) return;
 
-  if (selectedPolyIndex >= 0 && currentAnnotation && currentAnnotation.polygons && currentAnnotation.polygons[selectedPolyIndex] && currentImageBitmap) {
-    const poly = currentAnnotation.polygons[selectedPolyIndex];
-    const b = getPolygonPixelBounds(poly, currentImageBitmap.width, currentImageBitmap.height);
-    const bw = Math.round(b.width);
-    const bh = Math.round(b.height);
+  let pts = [];
+  if (mode === 'draw' && drawingPoints.length > 0) {
+    pts = drawingPoints;
+  } else if (selectedPolyIndex >= 0 && currentAnnotation && currentAnnotation.polygons[selectedPolyIndex]) {
+    pts = currentAnnotation.polygons[selectedPolyIndex].points;
+  }
 
-    if (b.isSmall) {
-      badge.className = 'viewport-size-badge warning';
-      badge.textContent = `Size : ${bw}px * ${bh}px (⚠️ 20px↓)`;
-    } else {
-      badge.className = 'viewport-size-badge';
-      badge.textContent = `Size : ${bw}px * ${bh}px`;
-    }
-  } else if (currentImageBitmap) {
-    badge.className = 'viewport-size-badge';
-    badge.textContent = `Size : ${currentImageBitmap.width}px * ${currentImageBitmap.height}px`;
-  } else {
-    badge.className = 'viewport-size-badge';
+  if (!pts || pts.length === 0) {
     badge.textContent = 'Size : 0px * 0px';
+    badge.style.background = 'rgba(0, 191, 165, 0.85)';
+    badge.style.borderColor = 'rgba(29, 233, 182, 0.4)';
+    return;
   }
-}
 
-function logAction(msg) {
-  const logEl = document.getElementById('bottomActionLog');
-  if (!logEl) return;
-  const now = new Date();
-  const timeStr = now.toTimeString().split(' ')[0];
-  logEl.textContent = `🕒 (${timeStr}) ${msg}`;
-}
+  const imgW = currentImageBitmap ? currentImageBitmap.width : 640;
+  const imgH = currentImageBitmap ? currentImageBitmap.height : 640;
+  const bounds = getPolygonPixelBounds(pts, imgW, imgH);
 
-function toggleFullscreen() {
-  if (!document.fullscreenElement) {
-    document.documentElement.requestFullscreen().catch(() => {});
+  badge.textContent = `Size : ${bounds.width}px * ${bounds.height}px`;
+
+  if (bounds.isSmall) {
+    badge.style.background = 'rgba(239, 68, 68, 0.9)';
+    badge.style.borderColor = '#ef4444';
   } else {
-    document.exitFullscreen().catch(() => {});
+    badge.style.background = 'rgba(0, 191, 165, 0.85)';
+    badge.style.borderColor = 'rgba(29, 233, 182, 0.4)';
   }
 }
 
-function showCheatsheet() {
-  alert("⌨️ [Dataset Studio 2D Tool 단축키 가이드]\n\n" +
-        "• A / D (or ← / →) : 이전 / 다음 이미지\n" +
-        "• Enter : 현재 이미지 검수 완료(COMPLETE) 및 다음 사진 이동\n" +
-        "• S / Ctrl+S : 라벨 저장 (Save)\n" +
-        "• Esc : 객체 선택 모드 (Object Mode)\n" +
-        "• E : 폴리곤 그리기 모드 (Edit Mode)\n" +
-        "• B : 바운딩 박스 그리기 모드 (BBox Mode)\n" +
-        "• R : AI 모델 자동 라벨링 추천 실행\n" +
-        "• 0~9 : 클래스 번호 빠른 지정\n" +
-        "• Q / Del : 선택 객체 삭제\n" +
-        "• F : 화면 크기에 맞춤 (Fit)\n" +
-        "• Space + 마우스 드래그 : 화면 이동 (Pan)\n" +
-        "• 마우스 휠 : 확대 / 축소 (Zoom)");
-}
-
-async function completeAndNext() {
-  if (currentImgIndex >= 0 && currentImgIndex < images.length) {
-    const item = images[currentImgIndex];
-    try {
-      await saveCurrent(true);
-      const sub = item.split === '.' ? item.stem : `${item.split}/${item.stem}`;
-      await fetch(`/api/mark_reviewed/${sub}`, { method: 'POST' });
-      item.is_edited = true;
-      logAction(`Image [${item.filename}] marked as COMPLETE`);
-      showToast(`검수 완료: ${item.filename}`);
-      renderImageList();
-    } catch (err) {}
-  }
-  nextImage();
-}
-
+// =========================================================================
+// Rendering Engine (Canvas & Polygons)
+// =========================================================================
 function draw() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   drawRulers();
-  updateSizeBadge();
-
-  const scaleEl = document.getElementById('bottomScaleInfo');
-  if (scaleEl) scaleEl.textContent = `Image Scale : ${Math.round(view.scale * 100)}%`;
 
   if (!currentImageBitmap) return;
 
@@ -1849,7 +1811,7 @@ function draw() {
       if (pts.length < 3) return;
 
       const cinfo = classes[poly.class_id] || { color: poly.color || '#fff' };
-      const color = cinfo.color;
+      const color = cinfo.color || '#fff';
 
       ctx.beginPath();
       const [startSx, startSy] = normToScreen(pts[0][0], pts[0][1]);
@@ -1860,61 +1822,52 @@ function draw() {
       }
       ctx.closePath();
 
-      ctx.fillStyle = hexToRgba(color, isSel ? 0.45 : 0.22);
+      // Fill
+      ctx.fillStyle = hexToRgba(color, isSel ? 0.35 : 0.18);
       ctx.fill();
 
-      ctx.lineWidth = isSel ? 2.5 : 1.5;
+      // Stroke
       ctx.strokeStyle = isSel ? '#ffffff' : color;
+      ctx.lineWidth = isSel ? 2.8 : 1.6;
       ctx.stroke();
 
-      pts.forEach((pt, vIdx) => {
-        const [vx, vy] = normToScreen(pt[0], pt[1]);
-        const isHovered = (hoveredVertex && hoveredVertex.polyIdx === pIdx && hoveredVertex.ptIdx === vIdx);
+      // Vertices
+      for (let i = 0; i < pts.length; i++) {
+        const [vx, vy] = normToScreen(pts[i][0], pts[i][1]);
+        const isHoveredV = (hoveredVertex && hoveredVertex.polyIdx === pIdx && hoveredVertex.ptIdx === i);
 
         ctx.beginPath();
-        ctx.arc(vx, vy, isHovered ? 5.5 : (isSel ? 4 : 2.5), 0, Math.PI * 2);
-        ctx.fillStyle = isHovered ? '#ff0055' : (isSel ? '#ffffff' : color);
+        const r = isSel ? 4.5 : 2.5;
+        ctx.arc(vx, vy, isHoveredV ? r + 3 : r, 0, Math.PI * 2);
+        ctx.fillStyle = isHoveredV ? '#fbbf24' : (isSel ? '#ffffff' : color);
         ctx.fill();
-        ctx.lineWidth = 1;
         ctx.strokeStyle = '#000000';
+        ctx.lineWidth = 1;
         ctx.stroke();
-      });
-
-      // Warning overlay for too-small polygons (20x20px or less)
-      if (isSel && currentAnnotation) {
-        const bounds = getPolygonPixelBounds(poly.points, currentAnnotation.width, currentAnnotation.height);
-        if (bounds.width <= 20 || bounds.height <= 20) {
-          const [topSx, topSy] = normToScreen(pts[0][0], pts[0][1]);
-          ctx.save();
-          ctx.font = 'bold 11px sans-serif';
-          const labelText = `⚠️ 20x20 이하 (${bounds.width}×${bounds.height}px)`;
-          const tw = ctx.measureText(labelText).width;
-          ctx.fillStyle = 'rgba(239, 68, 68, 0.9)';
-          ctx.fillRect(topSx - 4, topSy - 22, tw + 8, 18);
-          ctx.fillStyle = '#ffffff';
-          ctx.fillText(labelText, topSx, topSy - 9);
-          ctx.restore();
-        }
       }
     });
   }
 
-  // 3. Draw Edge Insertion Guide
-  if (hoveredEdge && mode === 'select') {
-    const [ex, ey] = normToScreen(hoveredEdge.pt[0], hoveredEdge.pt[1]);
-    ctx.beginPath();
-    ctx.arc(ex, ey, 4.5, 0, Math.PI * 2);
-    ctx.fillStyle = '#10b981';
-    ctx.fill();
-    ctx.strokeStyle = '#fff';
-    ctx.lineWidth = 1.2;
-    ctx.stroke();
+  // 3. Hovered Edge
+  if (hoveredEdge && currentAnnotation) {
+    const poly = currentAnnotation.polygons[hoveredEdge.polyIdx];
+    if (poly) {
+      const [ex, ey] = normToScreen(hoveredEdge.pt[0], hoveredEdge.pt[1]);
+      ctx.beginPath();
+      ctx.arc(ex, ey, 5, 0, Math.PI * 2);
+      ctx.fillStyle = '#00bfa5';
+      ctx.fill();
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+    }
   }
 
-  // 4. Draw Ongoing Polygon
+  // 4. Drawing Polygon
   if (mode === 'draw' && drawingPoints.length > 0) {
-    const cid = parseInt(document.getElementById('drawClassSelect').value) || 0;
-    const cinfo = classes[cid] || { color: '#4772b3' };
+    const drawCid = parseInt(document.getElementById('drawClassSelect').value) || 0;
+    const cinfo = classes[drawCid] || { color: '#00bfa5' };
+    const color = cinfo.color || '#00bfa5';
 
     ctx.beginPath();
     const [startSx, startSy] = normToScreen(drawingPoints[0][0], drawingPoints[0][1]);
@@ -1923,64 +1876,57 @@ function draw() {
       const [sx, sy] = normToScreen(drawingPoints[i][0], drawingPoints[i][1]);
       ctx.lineTo(sx, sy);
     }
-    ctx.strokeStyle = cinfo.color;
-    ctx.lineWidth = 2.0;
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 2;
+    ctx.setLineDash([4, 4]);
     ctx.stroke();
+    ctx.setLineDash([]);
 
-    drawingPoints.forEach(pt => {
-      const [vx, vy] = normToScreen(pt[0], pt[1]);
+    // Vertices
+    drawingPoints.forEach((p, idx) => {
+      const [sx, sy] = normToScreen(p[0], p[1]);
       ctx.beginPath();
-      ctx.arc(vx, vy, 4, 0, Math.PI * 2);
-      ctx.fillStyle = '#ffffff';
+      ctx.arc(sx, sy, idx === 0 ? 6 : 4, 0, Math.PI * 2);
+      ctx.fillStyle = idx === 0 ? '#10b981' : color;
       ctx.fill();
+      ctx.strokeStyle = '#fff';
+      ctx.lineWidth = 1.5;
       ctx.stroke();
     });
   }
+
+  updateSizeBadge();
 }
 
 function hexToRgba(hex, alpha) {
-  let c = hex.replace('#', '');
+  if (!hex || hex[0] !== '#') return `rgba(255, 255, 255, ${alpha})`;
+  let c = hex.substring(1);
   if (c.length === 3) c = c.split('').map(x => x + x).join('');
   const num = parseInt(c, 16);
   return `rgba(${(num >> 16) & 255}, ${(num >> 8) & 255}, ${num & 255}, ${alpha})`;
 }
 
 // =========================================================================
-// Interaction & Original Keyboard Shortcuts (100% Restored)
+// Interaction & Event Listeners
 // =========================================================================
 function setMode(m) {
   mode = m;
-  const iconEl = document.getElementById('blenderModeIcon');
-  const textEl = document.getElementById('blenderModeText');
-  if (iconEl && textEl) {
-    if (m === 'draw') {
-      iconEl.innerText = '✏';
-      textEl.innerText = 'Edit Mode';
-    } else {
-      iconEl.innerText = '↖';
-      textEl.innerText = 'Object Mode';
-    }
+  document.querySelectorAll('.tool-icon-btn').forEach(b => b.classList.remove('active'));
+  if (m === 'select') {
+    const b = document.getElementById('btnModeSelect');
+    if (b) b.classList.add('active');
+    canvas.style.cursor = 'default';
+  } else if (m === 'draw') {
+    const b = document.getElementById('btnModeDraw');
+    if (b) b.classList.add('active');
+    canvas.style.cursor = 'crosshair';
   }
-
-  const btnSel = document.getElementById('btnToolSelect');
-  const btnDraw = document.getElementById('btnToolDraw');
-  if (btnSel) btnSel.classList.toggle('active', m === 'select');
-  if (btnDraw) btnDraw.classList.toggle('active', m === 'draw');
-
-  if (m !== 'draw') drawingPoints = [];
-  closeAllMenus();
   draw();
 }
 
 function openDrawClassPicker() {
   const sel = document.getElementById('drawClassSelect');
-  if (!sel) return;
-  sel.focus();
-  try {
-    sel.showPicker();
-  } catch (err) {
-    sel.click();
-  }
+  if (sel) sel.focus();
 }
 
 function setupEventListeners() {
@@ -1995,7 +1941,7 @@ function setupEventListeners() {
 
     view.x = mx - (mx - view.x) * factor;
     view.y = my - (my - view.y) * factor;
-    view.scale = Math.max(0.1, Math.min(10.0, view.scale * factor));
+    view.scale = Math.max(0.08, Math.min(12.0, view.scale * factor));
     updateZoomInfo();
     draw();
   }, { passive: false });
@@ -2135,7 +2081,6 @@ function setupEventListeners() {
     }
   });
 
-  // Original Keyboard Shortcuts (100% Restored)
   window.addEventListener('keydown', e => {
     if ((e.code === 'Space' || e.key === ' ') && !['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) {
       e.preventDefault();
@@ -2272,7 +2217,7 @@ function pointInPolygon(pt, vs) {
 }
 
 // =========================================================================
-// Polygon Mutations & Drawing Finish
+// Polygon Mutations & 20x20 Block
 // =========================================================================
 function getPolygonPixelBounds(polyOrPts, imgWidth, imgHeight) {
   const points = Array.isArray(polyOrPts) ? polyOrPts : (polyOrPts && polyOrPts.points ? polyOrPts.points : []);
@@ -2374,22 +2319,108 @@ function deleteSelectedPolygon() {
   showToast('폴리곤 삭제');
 }
 
+function deleteLayerPolygon(idx) {
+  if (!currentAnnotation) return;
+  currentAnnotation.polygons.splice(idx, 1);
+  if (selectedPolyIndex === idx) selectedPolyIndex = -1;
+  else if (selectedPolyIndex > idx) selectedPolyIndex--;
+  setUnsaved(true);
+  updateUI();
+  draw();
+}
+
+function updateUI(hasSelectedPoly = false) {
+  renderLayers();
+  updateSelectedPolyInspector();
+  updateSizeBadge();
+}
+
+function renderLayers() {
+  const container = document.getElementById('polyLayersList');
+  const countBadge = document.getElementById('polyCountBadge');
+  if (!container) return;
+
+  if (!currentAnnotation || !currentAnnotation.polygons || currentAnnotation.polygons.length === 0) {
+    container.innerHTML = '<div style="padding:14px 10px; color:var(--text-muted); font-size:0.75rem; text-align:center;">폴리곤 레이어가 없습니다.</div>';
+    if (countBadge) countBadge.textContent = '0';
+    return;
+  }
+
+  if (countBadge) countBadge.textContent = `${currentAnnotation.polygons.length}`;
+  container.innerHTML = '';
+
+  currentAnnotation.polygons.forEach((poly, idx) => {
+    const isSel = (idx === selectedPolyIndex);
+    const row = document.createElement('div');
+    row.className = `object-row ${isSel ? 'active' : ''}`;
+
+    const cinfo = classes[poly.class_id] || { color: poly.color || '#fff', label_ko: poly.label_ko || `class_${poly.class_id}` };
+    const color = cinfo.color || '#fff';
+    const label = cinfo.label_ko || poly.class_name || `class_${poly.class_id}`;
+
+    row.innerHTML = `
+      <div class="obj-color-box" style="background:${color};"></div>
+      <div class="obj-name-wrap">
+        <span class="obj-index-num">#${idx + 1}</span>
+        <span class="obj-class-name">[${poly.class_id}] ${label}</span>
+        <span class="obj-pts-count">(${poly.points.length}pts)</span>
+      </div>
+      <div class="obj-row-actions">
+        <button class="obj-action-btn" title="삭제" onclick="event.stopPropagation(); deleteLayerPolygon(${idx});">&times;</button>
+      </div>
+    `;
+
+    row.onclick = () => {
+      selectedPolyIndex = idx;
+      selectedVertexIndex = -1;
+      updateUI(true);
+      draw();
+    };
+
+    container.appendChild(row);
+  });
+}
+
+function updateSelectedPolyInspector() {
+  const selBadge = document.getElementById('selPolyBadge');
+  const sizeEl = document.getElementById('selPolySize');
+  const warnEl = document.getElementById('selPolyWarning');
+  const selPicker = document.getElementById('selPolyClassPicker');
+
+  if (selectedPolyIndex < 0 || !currentAnnotation || !currentAnnotation.polygons[selectedPolyIndex]) {
+    if (selBadge) selBadge.textContent = 'None';
+    if (sizeEl) sizeEl.textContent = '-';
+    if (warnEl) warnEl.style.display = 'none';
+    return;
+  }
+
+  const poly = currentAnnotation.polygons[selectedPolyIndex];
+  if (selBadge) selBadge.textContent = `#${selectedPolyIndex + 1}`;
+  if (selPicker) selPicker.value = poly.class_id;
+
+  const imgW = currentImageBitmap ? currentImageBitmap.width : 640;
+  const imgH = currentImageBitmap ? currentImageBitmap.height : 640;
+  const bounds = getPolygonPixelBounds(poly, imgW, imgH);
+
+  if (sizeEl) {
+    sizeEl.textContent = `${poly.points.length}pts | ${bounds.width}×${bounds.height}px`;
+  }
+
+  if (warnEl) {
+    warnEl.style.display = bounds.isSmall ? 'block' : 'none';
+  }
+}
+
 function setUnsaved(val) {
   isUnsaved = val;
-  const badge = document.getElementById('statusBadge');
   if (val) {
-    badge.className = 'status-badge status-unsaved';
-    badge.textContent = '● 대기중...';
     if (autoSaveTimeout) clearTimeout(autoSaveTimeout);
     autoSaveTimeout = setTimeout(async () => {
       if (isUnsaved) {
-        badge.textContent = '● 저장중...';
         await saveCurrent(true);
       }
     }, 600);
   } else {
-    badge.className = 'status-badge status-saved';
-    badge.textContent = '● 저장됨';
     if (autoSaveTimeout) {
       clearTimeout(autoSaveTimeout);
       autoSaveTimeout = null;
@@ -2418,163 +2449,76 @@ async function saveCurrent(isAuto = false) {
       item.poly_count = data.polygons_count;
       updateItemBadge(currentImgIndex, true);
       if (!isAuto) showToast('저장 완료');
+      logAction(`Saved annotations for ${item.filename} (${data.polygons_count} polygons)`);
     }
-  } catch (err) {}
-}
-
-function updateUI(notifyIfSmall = false) {
-  const selCard = document.getElementById('selPolyDetails');
-  const selBadge = document.getElementById('selPolyBadge');
-  const selSize = document.getElementById('selPolySize');
-  const selWarn = document.getElementById('selPolyWarning');
-
-  if (selectedPolyIndex >= 0 && currentAnnotation && currentAnnotation.polygons[selectedPolyIndex]) {
-    const poly = currentAnnotation.polygons[selectedPolyIndex];
-    selCard.style.display = 'flex';
-    document.getElementById('selPolyClassPicker').value = poly.class_id;
-    document.getElementById('selPolyPtsCount').textContent = `버텍스: ${poly.points.length}개`;
-
-    const bounds = getPolygonPixelBounds(poly.points, currentAnnotation.width, currentAnnotation.height);
-    if (selSize) selSize.textContent = `${bounds.width}×${bounds.height}px`;
-
-    const isTooSmall = (bounds.width <= 20 || bounds.height <= 20);
-    if (isTooSmall) {
-      if (selWarn) {
-        selWarn.style.display = 'block';
-        selWarn.innerHTML = `⚠️ 너무 작음 (${bounds.width}×${bounds.height}px: 20×20px 이하 극소 폴리곤)`;
-      }
-      selBadge.textContent = `#${selectedPolyIndex + 1} (${poly.label_ko || poly.class_id}) [⚠️ 20x20 이하]`;
-      if (notifyIfSmall) {
-        showToast(`⚠️ 선택한 폴리곤이 너무 작습니다 (${bounds.width}×${bounds.height}px: 20×20px 이하)`);
-      }
-    } else {
-      if (selWarn) selWarn.style.display = 'none';
-      selBadge.textContent = `#${selectedPolyIndex + 1} (${poly.label_ko || poly.class_id})`;
-    }
-  } else {
-    selCard.style.display = 'none';
-    selBadge.textContent = '없음';
-    if (selWarn) selWarn.style.display = 'none';
-  }
-
-  const layersEl = document.getElementById('polyLayers');
-  layersEl.innerHTML = '';
-  if (currentAnnotation && currentAnnotation.polygons) {
-    document.getElementById('polyLayersCount').textContent = `${currentAnnotation.polygons.length}개`;
-    currentAnnotation.polygons.forEach((poly, idx) => {
-      const isSel = (idx === selectedPolyIndex);
-      const cinfo = classes[poly.class_id] || { color: poly.color || '#fff' };
-      const bounds = getPolygonPixelBounds(poly.points, currentAnnotation.width, currentAnnotation.height);
-      const isSmall = (bounds.width <= 20 || bounds.height <= 20);
-
-      const lItem = document.createElement('div');
-      lItem.className = `layer-item ${isSel ? 'active' : ''}`;
-      lItem.onclick = () => {
-        selectedPolyIndex = idx;
-        updateUI(true);
-        draw();
-      };
-      lItem.innerHTML = `
-        <div style="display:flex; align-items:center; gap:6px;">
-          <span class="color-dot" style="background:${cinfo.color}"></span>
-          <span>#${idx + 1} [${poly.class_id}] ${cinfo.label_ko || poly.label_ko || poly.class_id}</span>
-          <span style="font-size:0.68rem; color:var(--text-muted);">(${poly.points.length}pts, ${bounds.width}×${bounds.height})</span>
-          ${isSmall ? '<span style="font-size:0.62rem; color:#f87171; background:rgba(239,68,68,0.2); padding:1px 4px; border-radius:2px; font-weight:bold;">20px↓</span>' : ''}
-        </div>
-        <span class="layer-del-btn" onclick="event.stopPropagation(); deleteLayerPolygon(${idx})">&times;</span>
-      `;
-      layersEl.appendChild(lItem);
-    });
+  } catch (err) {
+    console.error('saveCurrent error:', err);
   }
 }
 
-function deleteLayerPolygon(idx) {
-  if (!currentAnnotation) return;
-  currentAnnotation.polygons.splice(idx, 1);
-  if (selectedPolyIndex === idx) selectedPolyIndex = -1;
-  else if (selectedPolyIndex > idx) selectedPolyIndex--;
-  setUnsaved(true);
-  updateUI();
-  draw();
-}
-
 // =========================================================================
-// Packaging & Utilities
-// =========================================================================
-async function rebuildDataset() {
-  closeAllMenus();
-  showToast('데이터셋 .tar.gz 압축 패키징 중...');
-  const res = await fetch('/api/rebuild', { method: 'POST' });
-  const data = await res.json();
-  if (data.success) {
-    alert(`✅ 패키징 완료!\n파일명: ${data.archive_name} (${data.size_mb} MB)`);
-  } else {
-    alert(`패키징 실패: ${data.error}`);
-  }
-}
-
-function openBenchmark() {
-  closeAllMenus();
-  window.open('/benchmark', '_blank');
-}
-
-// =========================================================================
-// Dataset Creation Modal & Task Runner
+// AI Recommendation & Dataset Creation Wizard
 // =========================================================================
 function openCreateModal() {
-  closeAllMenus();
-  document.getElementById('createModal').classList.add('open');
+  const m = document.getElementById('createModal');
+  if (m) m.classList.add('open');
   populateModalDropdowns();
 }
 
 function closeCreateModal() {
-  document.getElementById('createModal').classList.remove('open');
+  const m = document.getElementById('createModal');
+  if (m) m.classList.remove('open');
   if (taskPollInterval) clearInterval(taskPollInterval);
 }
 
 async function populateModalDropdowns() {
   const aiSrc = document.getElementById('aiSourceDataset');
   const cloneSrc = document.getElementById('cloneSourceDataset');
-  aiSrc.innerHTML = '';
-  cloneSrc.innerHTML = '';
+  if (aiSrc) aiSrc.innerHTML = '';
+  if (cloneSrc) cloneSrc.innerHTML = '';
 
   datasets.forEach(d => {
-    aiSrc.add(new Option(`${d.name} (${d.total_images}장)`, d.path));
-    cloneSrc.add(new Option(`${d.name} (${d.total_images}장)`, d.path));
+    if (aiSrc) aiSrc.add(new Option(`${d.name} (${d.total_images}장)`, d.path));
+    if (cloneSrc) cloneSrc.add(new Option(`${d.name} (${d.total_images}장)`, d.path));
   });
 
-  const wRes = await fetch('/api/available_models');
-  const wData = await wRes.json();
-  availableModelsList = wData.models || [];
-  const wSel = document.getElementById('aiModelWeight');
-  wSel.innerHTML = '';
+  try {
+    const wRes = await fetch('/api/available_models');
+    const wData = await wRes.json();
+    availableModelsList = wData.models || [];
+    const wSel = document.getElementById('aiModelWeight');
+    if (!wSel) return;
+    wSel.innerHTML = '';
 
-  let recommendedOptIndex = 0;
-  availableModelsList.forEach((m, idx) => {
-    let optText = `${m.filename} (${m.size_mb}MB)`;
-    if (m.is_recommended) {
-      optText = `[🎯 최고추천 | ${m.match_ratio}% 일치] ${optText}`;
-      recommendedOptIndex = idx;
-    } else if (m.recommend_badge) {
-      optText = `[${m.recommend_badge}] ${optText}`;
-    }
-    if (m.fitness) {
-      optText += ` (mAP ${m.fitness})`;
-    }
-    optText += ` - ${m.relative_path}`;
+    let recommendedOptIndex = 0;
+    availableModelsList.forEach((m, idx) => {
+      let optText = `${m.filename} (${m.size_mb}MB)`;
+      if (m.is_recommended) {
+        optText = `[🎯 최고추천 | ${m.match_ratio}% 일치] ${optText}`;
+        recommendedOptIndex = idx;
+      } else if (m.recommend_badge) {
+        optText = `[${m.recommend_badge}] ${optText}`;
+      }
+      if (m.fitness) {
+        optText += ` (mAP ${m.fitness})`;
+      }
+      optText += ` - ${m.relative_path}`;
 
-    const opt = new Option(optText, m.path);
-    if (m.is_recommended) {
-      opt.style.fontWeight = 'bold';
-      opt.style.color = '#60a5fa';
-    }
-    wSel.add(opt);
-  });
+      const opt = new Option(optText, m.path);
+      if (m.is_recommended) {
+        opt.style.fontWeight = 'bold';
+        opt.style.color = '#00bfa5';
+      }
+      wSel.add(opt);
+    });
 
-  if (availableModelsList.length > 0) {
-    wSel.selectedIndex = recommendedOptIndex;
+    if (availableModelsList.length > 0) {
+      wSel.selectedIndex = recommendedOptIndex;
+    }
+    onModelSelectChange();
+  } catch (err) {
+    console.error('populateModalDropdowns error:', err);
   }
-  onModelSelectChange();
 }
 
 function onModelSelectChange() {
@@ -2645,6 +2589,99 @@ async function startAiAutoLabeling() {
   }
 }
 
+async function startFilterClone() {
+  const name = document.getElementById('cloneDatasetName').value.trim();
+  const src = document.getElementById('cloneSourceDataset').value;
+
+  if (!name) return alert('데이터셋 이름을 입력해주세요.');
+
+  const res = await fetch('/api/dataset/create', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      mode: 'filter_clone',
+      name: name,
+      source_dataset: src
+    })
+  });
+  const data = await res.json();
+  if (data.success) {
+    trackTask(data.task_id, data.target_dir);
+  } else {
+    alert(data.error);
+  }
+}
+
+async function startCreateEmpty() {
+  const name = document.getElementById('emptyDatasetName').value.trim();
+  const clsStr = document.getElementById('emptyClasses').value.trim();
+  if (!name) return alert('데이터셋 이름을 입력해주세요.');
+
+  const classesList = clsStr.split(',').map(s => s.trim()).filter(Boolean);
+
+  const res = await fetch('/api/dataset/create', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      mode: 'empty',
+      name: name,
+      classes: classesList
+    })
+  });
+  const data = await res.json();
+  if (data.success) {
+    trackTask(data.task_id, data.target_dir);
+  } else {
+    alert(data.error);
+  }
+}
+
+function trackTask(tid, targetDir) {
+  activeTaskId = tid;
+  createdDatasetPath = targetDir;
+
+  const wrap = document.getElementById('taskMonitorWrap');
+  if (wrap) wrap.style.display = 'flex';
+  const openBtn = document.getElementById('btnOpenCreatedDataset');
+  if (openBtn) openBtn.style.display = 'none';
+  const consoleEl = document.getElementById('taskConsole');
+  if (consoleEl) consoleEl.innerHTML = '';
+
+  if (taskPollInterval) clearInterval(taskPollInterval);
+  taskPollInterval = setInterval(async () => {
+    try {
+      const res = await fetch(`/api/tasks/${tid}`);
+      const task = await res.json();
+
+      document.getElementById('taskPercentText').textContent = `${task.progress}%`;
+      document.getElementById('taskProgressBar').style.width = `${task.progress}%`;
+      document.getElementById('taskStatusText').textContent = task.message;
+
+      if (consoleEl) {
+        consoleEl.innerHTML = (task.logs || []).map(l => `<div>${l}</div>`).join('');
+        consoleEl.scrollTop = consoleEl.scrollHeight;
+      }
+
+      if (task.status === 'success') {
+        clearInterval(taskPollInterval);
+        document.getElementById('taskStatusText').textContent = '✅ 데이터셋 생성 성공!';
+        if (openBtn) openBtn.style.display = 'flex';
+        loadDatasetList();
+      } else if (task.status === 'failed') {
+        clearInterval(taskPollInterval);
+        document.getElementById('taskStatusText').textContent = `❌ 실패: ${task.error}`;
+      }
+    } catch (err) {}
+  }, 1000);
+}
+
+async function openCreatedDatasetNow() {
+  if (createdDatasetPath) {
+    closeCreateModal();
+    await switchDataset(createdDatasetPath);
+  }
+}
+
 // =========================================================================
 // Class Management Modal Logic
 // =========================================================================
@@ -2686,22 +2723,27 @@ const CLASS_PRESETS = {
 };
 
 function openClassModal() {
-  closeAllMenus();
-  document.getElementById('classManageModal').classList.add('open');
-  document.getElementById('classModalDatasetName').textContent = currentDataset ? `(${currentDataset.name})` : '';
-  document.getElementById('classModalStatus').textContent = '';
-  document.getElementById('presetSelect').value = '';
+  const modal = document.getElementById('classManageModal');
+  if (modal) modal.classList.add('open');
+  const titleName = document.getElementById('classModalDatasetName');
+  if (titleName) titleName.textContent = currentDataset ? `(${currentDataset.name})` : '';
+  const statusEl = document.getElementById('classModalStatus');
+  if (statusEl) statusEl.textContent = '';
+  const preSel = document.getElementById('presetSelect');
+  if (preSel) preSel.value = '';
 
   modalClassesState = JSON.parse(JSON.stringify(classes || {}));
   renderClassModalTable();
 }
 
 function closeClassModal() {
-  document.getElementById('classManageModal').classList.remove('open');
+  const modal = document.getElementById('classManageModal');
+  if (modal) modal.classList.remove('open');
 }
 
 function renderClassModalTable() {
   const tbody = document.getElementById('classTableBody');
+  if (!tbody) return;
   tbody.innerHTML = '';
 
   const cids = Object.keys(modalClassesState).map(Number).sort((a, b) => a - b);
@@ -2777,7 +2819,7 @@ function applyClassPreset(presetKey) {
 
 async function saveClassChanges() {
   const statusEl = document.getElementById('classModalStatus');
-  statusEl.textContent = '저장 중...';
+  if (statusEl) statusEl.textContent = '저장 중...';
 
   try {
     const res = await fetch('/api/classes/save', {
@@ -2787,104 +2829,15 @@ async function saveClassChanges() {
     });
     const data = await res.json();
     if (res.ok && data.success) {
-      statusEl.textContent = '✅ 저장 완료!';
+      if (statusEl) statusEl.textContent = '✅ 저장 완료!';
       showToast(data.message || 'data.yaml에 저장되었습니다.');
       await refreshActiveDataset();
       setTimeout(closeClassModal, 500);
     } else {
-      statusEl.textContent = `❌ ${data.error || '저장 실패'}`;
+      if (statusEl) statusEl.textContent = `❌ ${data.error || '저장 실패'}`;
     }
   } catch (err) {
-    statusEl.textContent = `❌ 오류: ${err.message}`;
-  }
-}
-
-async function startFilterClone() {
-  const name = document.getElementById('cloneDatasetName').value.trim();
-  const src = document.getElementById('cloneSourceDataset').value;
-  const prune20px = document.getElementById('clonePrune20px').checked;
-
-  if (!name) return alert('데이터셋 이름을 입력해주세요.');
-
-  const res = await fetch('/api/dataset/create', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      mode: 'filter_clone',
-      name: name,
-      source_dataset: src,
-      prune_20px: prune20px
-    })
-  });
-  const data = await res.json();
-  if (data.success) {
-    trackTask(data.task_id, data.target_dir);
-  } else {
-    alert(data.error);
-  }
-}
-
-async function startCreateEmpty() {
-  const name = document.getElementById('emptyDatasetName').value.trim();
-  const clsStr = document.getElementById('emptyClasses').value.trim();
-  if (!name) return alert('데이터셋 이름을 입력해주세요.');
-
-  const classesList = clsStr.split(',').map(s => s.trim()).filter(Boolean);
-
-  const res = await fetch('/api/dataset/create', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      mode: 'empty',
-      name: name,
-      classes: classesList
-    })
-  });
-  const data = await res.json();
-  if (data.success) {
-    trackTask(data.task_id, data.target_dir);
-  } else {
-    alert(data.error);
-  }
-}
-
-function trackTask(tid, targetDir) {
-  activeTaskId = tid;
-  createdDatasetPath = targetDir;
-
-  document.getElementById('taskMonitorWrap').style.display = 'flex';
-  document.getElementById('btnOpenCreatedDataset').style.display = 'none';
-  document.getElementById('taskConsole').innerHTML = '';
-
-  if (taskPollInterval) clearInterval(taskPollInterval);
-  taskPollInterval = setInterval(async () => {
-    const res = await fetch(`/api/tasks/${tid}`);
-    const task = await res.json();
-
-    document.getElementById('taskPercentText').textContent = `${task.progress}%`;
-    document.getElementById('taskProgressBar').style.width = `${task.progress}%`;
-    document.getElementById('taskStatusText').textContent = task.message;
-
-    const consoleEl = document.getElementById('taskConsole');
-    consoleEl.innerHTML = (task.logs || []).map(l => `<div>${l}</div>`).join('');
-    consoleEl.scrollTop = consoleEl.scrollHeight;
-
-    if (task.status === 'success') {
-      clearInterval(taskPollInterval);
-      document.getElementById('taskStatusText').textContent = '✅ 데이터셋 생성 성공!';
-      document.getElementById('btnOpenCreatedDataset').style.display = 'flex';
-      loadDatasetList();
-    } else if (task.status === 'failed') {
-      clearInterval(taskPollInterval);
-      document.getElementById('taskStatusText').textContent = `❌ 실패: ${task.error}`;
-    }
-  }, 1000);
-}
-
-async function openCreatedDatasetNow() {
-  if (createdDatasetPath) {
-    closeCreateModal();
-    await switchDataset(createdDatasetPath);
+    if (statusEl) statusEl.textContent = `❌ 오류: ${err.message}`;
   }
 }
 </script>

@@ -45,16 +45,39 @@ KNOWN_CLASSES = {
     "tactile_line": {"label_ko": "선형 점자", "color": "#FACC15"},
     "tactile_dot": {"label_ko": "점형 점자", "color": "#FB923C"},
     "stairs": {"label_ko": "계단", "color": "#E879F9"},
+    "stair": {"label_ko": "계단", "color": "#E879F9"},
     "elevator": {"label_ko": "승강기", "color": "#38BDF8"},
     "crosswalk": {"label_ko": "횡단보도", "color": "#4ADE80"},
     "bollard": {"label_ko": "볼라드", "color": "#F87171"},
     "movable_signage": {"label_ko": "입간판", "color": "#F97316"},
+    "signage": {"label_ko": "입간판", "color": "#F97316"},
     "facility": {"label_ko": "시설물", "color": "#A855F7"},
     "curb": {"label_ko": "연석/턱", "color": "#64748B"},
     "sidewalk": {"label_ko": "보도", "color": "#38BDF8"},
     "roadway": {"label_ko": "차도", "color": "#6B7280"},
     "elevator_sign": {"label_ko": "승강기 표지", "color": "#2DD4BF"},
     "toilet_sign": {"label_ko": "화장실 표지", "color": "#818CF8"},
+
+    # Korean Direct Aliases
+    "점자블록": {"label_ko": "선형 점자", "color": "#FACC15"},
+    "선형점자": {"label_ko": "선형 점자", "color": "#FACC15"},
+    "선형 점자": {"label_ko": "선형 점자", "color": "#FACC15"},
+    "점형점자": {"label_ko": "점형 점자", "color": "#FB923C"},
+    "점형 점자": {"label_ko": "점형 점자", "color": "#FB923C"},
+    "계단": {"label_ko": "계단", "color": "#E879F9"},
+    "승강기": {"label_ko": "승강기", "color": "#38BDF8"},
+    "횡단보도": {"label_ko": "횡단보도", "color": "#4ADE80"},
+    "볼라드": {"label_ko": "볼라드", "color": "#F87171"},
+    "입간판": {"label_ko": "입간판", "color": "#F97316"},
+    "시설물": {"label_ko": "시설물", "color": "#A855F7"},
+    "자전거": {"label_ko": "자전거", "color": "#FDE047"},
+    "이륜차": {"label_ko": "이륜차", "color": "#FDE047"},
+    "오토바이": {"label_ko": "오토바이", "color": "#FB923C"},
+    "승용차": {"label_ko": "승용차", "color": "#60A5FA"},
+    "차량": {"label_ko": "차량", "color": "#94A3B8"},
+    "보행자": {"label_ko": "보행자", "color": "#F472B6"},
+    "신호등": {"label_ko": "신호등", "color": "#EF4444"},
+    "연석": {"label_ko": "연석/턱", "color": "#64748B"},
 
     # Vehicles & Traffic
     "person": {"label_ko": "보행자", "color": "#F472B6"},
@@ -294,7 +317,9 @@ class DatasetState:
         if not classes:
             yaml_cands = [
                 dp / "data.yaml", dp / "dataset.yaml", dp / "data.yml", dp / "dataset.yml",
-                dp / "metadata.yaml", dp / "labels.yaml"
+                dp / "metadata.yaml", dp / "labels.yaml",
+                dp.parent / "data.yaml", dp.parent / "dataset.yaml",
+                dp.parent / "data.yml", dp.parent / "dataset.yml"
             ]
             for yp in yaml_cands:
                 if yp.exists():
