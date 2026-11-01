@@ -399,45 +399,68 @@
     box-shadow: 0 8px 24px rgba(0,0,0,0.6); opacity: 0; transform: translateY(8px); transition: all 0.15s; pointer-events: none;
   }
   .toast.show { opacity: 1; transform: translateY(0); }
+
+  /* High-Fidelity 2D Annotation Studio Styles */
+  .object-table-header {
+    display: flex; align-items: center; justify-content: space-between; padding: 4px 8px;
+    font-size: 0.68rem; font-weight: 700; color: #64748b; background: #16181b;
+    border-bottom: 1px solid rgba(255,255,255,0.05); text-transform: uppercase; letter-spacing: 0.5px;
+  }
+  .object-pts-badge {
+    font-size: 0.65rem; color: #94a3b8; font-family: ui-monospace, monospace; background: rgba(255,255,255,0.06);
+    padding: 1px 5px; border-radius: 3px;
+  }
+  .object-eye-btn {
+    cursor: pointer; font-size: 0.8rem; padding: 1px 3px; border-radius: 3px; opacity: 0.75;
+    transition: all 0.1s;
+  }
+  .object-eye-btn:hover { opacity: 1.0; transform: scale(1.1); }
+  .object-eye-btn.hidden-eye { opacity: 0.35; filter: grayscale(1); }
+  .edit-badge {
+    background: rgba(0, 191, 165, 0.18); color: #00bfa5; border: 1px solid rgba(0, 191, 165, 0.35);
+    font-size: 0.62rem; font-weight: 700; padding: 1px 4px; border-radius: 3px;
+  }
+  .img-item-sub {
+    font-size: 0.66rem; color: var(--text-dim); display: flex; justify-content: space-between; align-items: center;
+  }
+
 </style>
 </head>
 <body>
 <header class="studio-header">
   <div class="header-left">
-    <div class="header-logo-badge" onclick="openFolderModal()" title="작업 디렉토리 열기">DS</div>
+    <div class="header-logo-badge" onclick="openFolderModal()" title="Dataset Studio">M</div>
     <div class="header-task-title">
-      <span style="color:#94a3b8;">[Demo Task]</span>
-      <span style="font-weight:700;">TASK :</span>
-      <span id="headerTaskName" class="header-task-pill">선택된 디렉토리 없음</span>
+      <span style="color:#94a3b8; font-size:0.75rem;">[Studio]</span>
+      <span style="color:#64748b;">TASK :</span>
+      <span id="headerTaskPill" class="header-task-pill">선택된 디렉토리 없음</span>
     </div>
   </div>
 
   <div class="header-right">
-    <button class="header-icon-btn" onclick="openFolderModal()" title="작업 디렉토리 열기 (Open Folder)">📂</button>
-    <button class="header-icon-btn" onclick="openCreateModal()" title="새 데이터셋 생성 마법사">✨</button>
+    <button class="header-icon-btn" onclick="saveCurrent()" title="저장 [Ctrl+S / S]">💾</button>
+    <button class="header-icon-btn" onclick="openFolderModal()" title="작업 디렉토리 열기 [O]">📁</button>
+    <button class="header-icon-btn" onclick="openCreateModal()" title="AI 자동 라벨링 / 새 데이터셋 마법사">✨</button>
     <button class="header-icon-btn" onclick="openClassModal()" title="클래스 관리 (data.yaml)">⚙️</button>
-    <button class="header-icon-btn" onclick="rebuildDataset()" title=".tar.gz 패키징 아카이브">📦</button>
-    <button class="header-icon-btn" onclick="toggleFullscreen()" title="전체화면 (Fullscreen)">⛶</button>
-    <button class="header-icon-btn header-icon-btn-danger" onclick="showCheatsheet()" title="도움말 / 단축키">❓</button>
+    <button class="header-icon-btn" onclick="toggleFullscreen()" title="전체화면 [F11]">⛶</button>
+    <button class="header-icon-btn header-icon-btn-danger" onclick="showCheatsheet()" title="단축키 및 도움말 [?]">❓</button>
   </div>
 </header>
 
 <div class="studio-body">
   <!-- Left Vertical Toolbar -->
   <aside class="studio-vtoolbar">
-    <button class="vtool-btn active" id="vtoolSelect" onclick="setMode('select')" title="객체 선택 모드 (Object Mode [Esc])">↖</button>
-    <button class="vtool-btn" id="vtoolDraw" onclick="setMode('draw')" title="새 폴리곤 그리기 (Edit Mode [E])">⬡</button>
-    <button class="vtool-btn" id="vtoolBbox" onclick="setMode('bbox')" title="바운딩 박스 그리기 (BBox [B])">▢</button>
+    <button class="vtool-btn active" id="vtoolSelect" onclick="setMode('select')" title="객체 선택 모드 (Select [Esc / V])">↖</button>
+    <button class="vtool-btn" id="vtoolDraw" onclick="setMode('draw')" title="폴리곤 그리기 (Polygon [E / P])">⬡</button>
+    <button class="vtool-btn" id="vtoolBbox" onclick="setMode('bbox')" title="바운딩 박스 그리기 (Bounding Box [B])">▢</button>
     <div class="vtool-sep"></div>
-    <button class="vtool-btn" onclick="triggerAiAutoLabel()" title="AI 자동 라벨링 추천 실행 [R]">🤖</button>
-    <button class="vtool-btn" onclick="undoAction()" title="실행 취소 (Undo [Ctrl+Z])">↩️</button>
+    <button class="vtool-btn" onclick="openCreateModal(); switchCreateTab('ai_auto');" title="AI 자동 라벨링 추천 시스템 [R]">🪄</button>
+    <button class="vtool-btn" onclick="resetViewFit()" title="화면 크기에 맞춤 (Fit to Screen [F])">🔍</button>
+    <button class="vtool-btn" onclick="deleteSelectedPolygon()" title="선택 객체 삭제 (Delete [Q / Del])">🗑️</button>
     <div class="vtool-sep"></div>
-    <button class="vtool-btn" onclick="resetViewFit()" title="화면 크기에 맞춤 (Fit [F])">🔍</button>
-    <button class="vtool-btn" onclick="zoomIn()" title="확대 (+)">➕</button>
-    <button class="vtool-btn" onclick="zoomOut()" title="축소 (-)">➖</button>
-    <div class="vtool-sep"></div>
-    <button class="vtool-btn" onclick="prevImage()" title="이전 이미지 [A]">◀</button>
-    <button class="vtool-btn" onclick="nextImage()" title="다음 이미지 [D]">▶</button>
+    <button class="vtool-btn" onclick="openClassModal()" title="클래스 정의 및 data.yaml 관리 [C]">⚙️</button>
+    <button class="vtool-btn" onclick="prevImage()" title="이전 이미지 [A / ←]">◀</button>
+    <button class="vtool-btn" onclick="nextImage()" title="다음 이미지 [D / →]">▶</button>
   </aside>
 
   <!-- Center Canvas Viewport with Rulers & Spec Badge -->
@@ -869,6 +892,8 @@ const workspace = document.getElementById('canvasWorkspace');
 const rulerH = document.getElementById('rulerHorizontal');
 const rulerV = document.getElementById('rulerVertical');
 
+let isDraggingBbox = false;
+let bboxStartPt = null;
 // Tasks & Explorer
 let activeTaskId = null;
 let taskPollInterval = null;
@@ -1516,7 +1541,7 @@ function renderImageList() {
   const imgBadge = document.getElementById('headerImgBadge');
   if (imgBadge) {
     const total = images.length;
-    imgBadge.textContent = total > 0 ? `1-${Math.min(10, total)} [${total}]` : '0-0 [0]';
+    imgBadge.textContent = total > 0 ? `1-${Math.min(10, total)} (${total})` : '0-0 (0)';
   }
 
   if (images.length === 0) {
@@ -1526,20 +1551,21 @@ function renderImageList() {
 
   images.forEach((item, idx) => {
     const el = document.createElement('div');
-    el.className = `image-item-card ${idx === currentImgIndex ? 'active' : ''}`;
+    el.className = `img-list-item ${idx === currentImgIndex ? 'active' : ''}`;
     el.id = `img-item-${idx}`;
 
     const splitPath = item.split === '.' ? item.filename : `${item.split}/${item.filename}`;
     const thumbUrl = `/api/image/${splitPath}`;
 
     el.innerHTML = `
-      <img src="${thumbUrl}" class="item-thumb" loading="lazy" alt="thumb" onerror="this.style.display='none'">
-      <div class="item-info">
-        <div class="item-name" title="${item.filename}">${item.filename}</div>
-        <div class="item-meta">
-          <span class="meta-tag tag-split">${item.split}</span>
-          <span class="meta-tag">${item.poly_count} objs</span>
-          ${item.is_edited ? '<span class="meta-tag" style="background:#00bfa5; color:#fff;">✓</span>' : ''}
+      <div class="img-thumb-box">
+        <img src="${thumbUrl}" loading="lazy" alt="thumb" onerror="this.style.display='none'">
+      </div>
+      <div class="img-item-meta">
+        <div class="img-item-name" title="${item.filename}">${item.filename}</div>
+        <div class="img-item-sub">
+          <span>${item.split} • ${item.poly_count} objs</span>
+          ${item.is_edited ? '<span class="edit-badge">✓ Reviewed</span>' : '<span style="color:#64748b;">Unreviewed</span>'}
         </div>
       </div>
     `;
@@ -1563,7 +1589,7 @@ async function selectImage(idx) {
   const item = images[idx];
   if (!item) return;
 
-  document.querySelectorAll('.image-item-card').forEach(el => el.classList.remove('active'));
+  document.querySelectorAll('.img-list-item').forEach(el => el.classList.remove('active'));
   const activeEl = document.getElementById(`img-item-${idx}`);
   if (activeEl) {
     activeEl.classList.add('active');
@@ -1806,6 +1832,7 @@ function draw() {
   // 2. Draw Polygons
   if (currentAnnotation && currentAnnotation.polygons) {
     currentAnnotation.polygons.forEach((poly, pIdx) => {
+      if (poly.hidden) return;
       const isSel = (pIdx === selectedPolyIndex);
       const pts = poly.points;
       if (pts.length < 3) return;
@@ -1911,13 +1938,17 @@ function hexToRgba(hex, alpha) {
 // =========================================================================
 function setMode(m) {
   mode = m;
-  document.querySelectorAll('.tool-icon-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.vtool-btn').forEach(b => b.classList.remove('active'));
   if (m === 'select') {
-    const b = document.getElementById('btnModeSelect');
+    const b = document.getElementById('vtoolSelect');
     if (b) b.classList.add('active');
     canvas.style.cursor = 'default';
   } else if (m === 'draw') {
-    const b = document.getElementById('btnModeDraw');
+    const b = document.getElementById('vtoolDraw');
+    if (b) b.classList.add('active');
+    canvas.style.cursor = 'crosshair';
+  } else if (m === 'bbox') {
+    const b = document.getElementById('vtoolBbox');
     if (b) b.classList.add('active');
     canvas.style.cursor = 'crosshair';
   }
@@ -1956,6 +1987,17 @@ function setupEventListeners() {
       view.y += my - view.panStartY;
       view.panStartX = mx;
       view.panStartY = my;
+      draw();
+      return;
+    }
+
+    if (mode === 'bbox' && isDraggingBbox && bboxStartPt) {
+      const [nx, ny] = screenToNorm(mx, my);
+      const x1 = Math.min(bboxStartPt[0], nx);
+      const y1 = Math.min(bboxStartPt[1], ny);
+      const x2 = Math.max(bboxStartPt[0], nx);
+      const y2 = Math.max(bboxStartPt[1], ny);
+      drawingPoints = [[x1, y1], [x2, y1], [x2, y2], [x1, y2]];
       draw();
       return;
     }
@@ -2021,6 +2063,12 @@ function setupEventListeners() {
         selectedVertexIndex = -1;
         updateUI(pHit >= 0);
         draw();
+      } else if (mode === 'bbox') {
+        const normPt = screenToNorm(mx, my);
+        isDraggingBbox = true;
+        bboxStartPt = normPt;
+        drawingPoints = [normPt, normPt, normPt, normPt];
+        draw();
       } else if (mode === 'draw') {
         const normPt = screenToNorm(mx, my);
         if (drawingPoints.length >= 3) {
@@ -2039,6 +2087,15 @@ function setupEventListeners() {
 
   window.addEventListener('mouseup', () => {
     if (view.isPanning) view.isPanning = false;
+    if (mode === 'bbox' && isDraggingBbox) {
+      isDraggingBbox = false;
+      if (drawingPoints.length >= 4) {
+        finishDrawingPolygon();
+      }
+      drawingPoints = [];
+      bboxStartPt = null;
+      draw();
+    }
     if (isDraggingVertex) {
       if (selectedPolyIndex >= 0 && currentAnnotation && currentAnnotation.polygons[selectedPolyIndex]) {
         const poly = currentAnnotation.polygons[selectedPolyIndex];
@@ -2335,19 +2392,35 @@ function updateUI(hasSelectedPoly = false) {
   updateSizeBadge();
 }
 
+function togglePolyVisibility(idx) {
+  if (!currentAnnotation || !currentAnnotation.polygons[idx]) return;
+  const poly = currentAnnotation.polygons[idx];
+  poly.hidden = !poly.hidden;
+  renderLayers();
+  draw();
+}
+
 function renderLayers() {
   const container = document.getElementById('polyLayersList');
   const countBadge = document.getElementById('polyCountBadge');
   if (!container) return;
 
   if (!currentAnnotation || !currentAnnotation.polygons || currentAnnotation.polygons.length === 0) {
-    container.innerHTML = '<div style="padding:14px 10px; color:var(--text-muted); font-size:0.75rem; text-align:center;">폴리곤 레이어가 없습니다.</div>';
+    container.innerHTML = '<div style="padding:16px 10px; color:var(--text-muted); font-size:0.75rem; text-align:center;">폴리곤 레이어가 없습니다.</div>';
     if (countBadge) countBadge.textContent = '0';
     return;
   }
 
   if (countBadge) countBadge.textContent = `${currentAnnotation.polygons.length}`;
-  container.innerHTML = '';
+  container.innerHTML = `
+    <div class="object-table-header">
+      <span style="width:24px;">NO</span>
+      <span style="width:16px;"></span>
+      <span style="flex:1;">CLASS</span>
+      <span style="width:48px; text-align:right;">PTS</span>
+      <span style="width:44px; text-align:center;">ACT</span>
+    </div>
+  `;
 
   currentAnnotation.polygons.forEach((poly, idx) => {
     const isSel = (idx === selectedPolyIndex);
@@ -2359,14 +2432,15 @@ function renderLayers() {
     const label = cinfo.label_ko || poly.class_name || `class_${poly.class_id}`;
 
     row.innerHTML = `
-      <div class="obj-color-box" style="background:${color};"></div>
-      <div class="obj-name-wrap">
-        <span class="obj-index-num">#${idx + 1}</span>
-        <span class="obj-class-name">[${poly.class_id}] ${label}</span>
-        <span class="obj-pts-count">(${poly.points.length}pts)</span>
+      <div class="object-left-info" style="flex:1; min-width:0;">
+        <span class="object-index-num" style="width:22px; font-weight:700; color:#cbd5e1; font-family:monospace;">#${idx + 1}</span>
+        <span class="object-color-dot" style="background:${color};"></span>
+        <span class="object-title" title="[${poly.class_id}] ${label}">[${poly.class_id}] ${label}</span>
       </div>
-      <div class="obj-row-actions">
-        <button class="obj-action-btn" title="삭제" onclick="event.stopPropagation(); deleteLayerPolygon(${idx});">&times;</button>
+      <div style="display:flex; align-items:center; gap:5px; flex-shrink:0;">
+        <span class="object-pts-badge">${poly.points.length}p</span>
+        <span class="object-eye-btn ${poly.hidden ? 'hidden-eye' : ''}" title="가시성 토글" onclick="event.stopPropagation(); togglePolyVisibility(${idx});">${poly.hidden ? '🙈' : '👁️'}</span>
+        <button class="object-btn-del" title="삭제" onclick="event.stopPropagation(); deleteLayerPolygon(${idx});">&times;</button>
       </div>
     `;
 
