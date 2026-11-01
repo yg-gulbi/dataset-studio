@@ -772,9 +772,12 @@ def discover_available_weights(target_dataset_classes=None):
     results = []
     seen_paths = set()
     
-    search_dirs = [STUDIO_DIR, STUDIO_DIR.parent]
-    if state.dataset_path:
-        search_dirs.extend([state.dataset_path, state.dataset_path.parent])
+    search_dirs = []
+    if state.dataset_path and state.dataset_path.exists():
+        search_dirs.append(state.dataset_path)
+    search_dirs.extend([STUDIO_DIR, STUDIO_DIR.parent])
+    if state.dataset_path and state.dataset_path.parent != STUDIO_DIR:
+        search_dirs.append(state.dataset_path.parent)
 
     weight_files = []
     seen_wf = set()
@@ -785,9 +788,9 @@ def discover_available_weights(target_dataset_classes=None):
             for wf in s_dir.glob("**/*.pt"):
                 if ".git" in str(wf) or ".cache" in str(wf):
                     continue
-                r = wf.resolve()
-                if r not in seen_wf:
-                    seen_wf.add(r)
+                wf_key = str(wf.absolute())
+                if wf_key not in seen_wf:
+                    seen_wf.add(wf_key)
                     weight_files.append(wf)
         except Exception:
             pass
@@ -795,10 +798,22 @@ def discover_available_weights(target_dataset_classes=None):
     for wf in weight_files:
         if ".git" in str(wf) or ".cache" in str(wf):
             continue
-        p_resolved = wf.resolve()
-        if p_resolved in seen_paths:
+        wf_key = str(wf.absolute())
+        if wf_key in seen_paths:
             continue
-        seen_paths.add(p_resolved)
+        seen_paths.add(wf_key)
+
+        is_in_folder = False
+        if state.dataset_path and state.dataset_path.exists():
+            try:
+                wf.absolute().relative_to(state.dataset_path.resolve())
+                is_in_folder = True
+            except ValueError:
+                try:
+                    wf.resolve().relative_to(state.dataset_path.resolve())
+                    is_in_folder = True
+                except ValueError:
+                    is_in_folder = False
 
         size_mb = round(wf.stat().st_size / (1024 * 1024), 1)
         try:
@@ -828,6 +843,9 @@ def discover_available_weights(target_dataset_classes=None):
         match_ratio = round((match_count / max(1, target_count)) * 100, 1) if target_names else 0
 
         score = 0.0
+        if is_in_folder:
+            score += 200.0  # 작업 디렉토리 내부 모델 최우선 가중치
+
         if match_count > 0:
             score += match_ratio * 1.5
             if fitness is not None:
@@ -856,12 +874,19 @@ def discover_available_weights(target_dataset_classes=None):
             "matched_count": match_count,
             "match_ratio": match_ratio,
             "score": round(score, 1),
+            "is_in_folder": is_in_folder,
+            "location_badge": "📁 작업 폴더" if is_in_folder else "스튜디오/시스템",
         })
 
-    results.sort(key=lambda x: (-x["score"], -(x["fitness"] or 0), -x["size_mb"]))
+    results.sort(key=lambda x: (-1 if x.get("is_in_folder") else 0, -x["score"], -(x["fitness"] or 0), -x["size_mb"]))
 
     for rank, item in enumerate(results):
-        if rank == 0 and item["score"] > 0 and item["matched_count"] > 0:
+        if item.get("is_in_folder"):
+            folder_fit = f" | mAP {item['fitness']}" if item["fitness"] else ""
+            item["is_recommended"] = (rank == 0)
+            item["recommend_badge"] = f"📁 작업 폴더 모델 ({item['matched_count']}개 호환{folder_fit})"
+            item["recommend_reason"] = f"현재 열려 있는 작업 폴더 내에 배치된 최우선 모델입니다. ({item['matched_count']}개 클래스 호환)"
+        elif rank == 0 and item["score"] > 0 and item["matched_count"] > 0:
             item["is_recommended"] = True
             fit_str = f" | mAP {item['fitness']}" if item["fitness"] else ""
             item["recommend_badge"] = f"🎯 추천 ({item['match_ratio']}% 일치{fit_str})"
@@ -976,6 +1001,202 @@ def get_available_models():
         "models": weights,
         "recommended_model": best_model,
         "active_dataset_classes_count": len(state.classes)
+    })
+
+
+# In-memory YOLO model cache for fast single-image prediction
+LOADED_YOLO_MODELS = {}
+
+
+@app.route("/api/predict_polygons", methods=["POST"])
+def predict_polygons():
+    """
+    Run AI polygon inference on a single image using the specified or best available YOLO model.
+    Prioritizes models in the current active dataset folder.
+    Automatically filters out tiny noise polygons <= 20x20px.
+    """
+    if not state.dataset_path or not state.dataset_path.exists():
+        return jsonify({"success": False, "error": "선택된 데이터셋 디렉토리가 없습니다."}), 400
+
+    data = request.get_json(force=True, silent=True) or {}
+    split_or_subpath = data.get("subpath", "").strip()
+    model_path_str = data.get("model_path", "").strip()
+    conf_thres = float(data.get("conf", 0.35))
+
+    if not split_or_subpath:
+        return jsonify({"success": False, "error": "이미지 경로(subpath)가 지정되지 않았습니다."}), 400
+
+    # 1. 대상 이미지 경로 탐색
+    parts = split_or_subpath.split("/")
+    if len(parts) >= 2:
+        split, filename = parts[0], parts[-1]
+    else:
+        split, filename = ".", parts[0]
+
+    img_candidates = [
+        state.dataset_path / "images" / split_or_subpath,
+        state.dataset_path / split_or_subpath,
+        state.dataset_path / "images" / split / filename if split != "." else state.dataset_path / "images" / filename,
+        state.dataset_path / filename,
+    ]
+    img_path = None
+    for cand in img_candidates:
+        if cand.exists() and cand.is_file():
+            img_path = cand
+            break
+
+    if not img_path:
+        return jsonify({"success": False, "error": f"대상 이미지 파일을 찾을 수 없습니다: {split_or_subpath}"}), 404
+
+    # 2. 모델 파일 결정 (지정 모델 -> 작업 폴더/스튜디오 탐색)
+    target_model_file = None
+    if model_path_str:
+        p = Path(model_path_str)
+        if p.exists() and p.is_file():
+            target_model_file = p
+        else:
+            for base in [state.dataset_path, STUDIO_DIR, STUDIO_DIR.parent]:
+                cand = base / model_path_str
+                if cand.exists() and cand.is_file():
+                    target_model_file = cand
+                    break
+
+    if not target_model_file:
+        available = discover_available_weights(target_dataset_classes=state.classes)
+        if available:
+            target_model_file = Path(available[0]["path"])
+
+    if not target_model_file or not target_model_file.exists():
+        return jsonify({"success": False, "error": "사용 가능한 AI 모델(.pt)을 찾을 수 없습니다. 모델을 작업 폴더나 models 폴더에 배치해주세요."}), 404
+
+    # 3. 모델 로드 (인메모리 캐시)
+    resolved_model_path = str(target_model_file.resolve())
+    try:
+        if resolved_model_path not in LOADED_YOLO_MODELS:
+            from ultralytics import YOLO
+            LOADED_YOLO_MODELS[resolved_model_path] = YOLO(resolved_model_path)
+        model = LOADED_YOLO_MODELS[resolved_model_path]
+    except Exception as e:
+        return jsonify({"success": False, "error": f"모델 로드 실패 ({target_model_file.name}): {str(e)}"}), 500
+
+    # 4. 이미지 크기 확인
+    try:
+        with Image.open(img_path) as im:
+            img_w, img_h = im.size
+    except Exception as e:
+        return jsonify({"success": False, "error": f"이미지 열기 실패: {str(e)}"}), 500
+
+    # 5. 추론 실행
+    try:
+        res = model.predict(
+            source=str(img_path),
+            conf=conf_thres,
+            device="cpu",
+            retina_masks=False,
+            verbose=False,
+        )[0]
+    except Exception as e:
+        return jsonify({"success": False, "error": f"AI 추론 실행 중 오류 발생: {str(e)}"}), 500
+
+    # 6. 폴리곤 추출 및 20px 이하 노이즈 마스크 필터링
+    model_names = model.names if hasattr(model, "names") else {}
+    dataset_class_lookup = {}
+    for cid, cinfo in state.classes.items():
+        if isinstance(cinfo, dict):
+            cname = cinfo.get("name", "").strip().lower()
+            cko = cinfo.get("label_ko", "").strip().lower()
+            if cname:
+                dataset_class_lookup[cname] = cid
+            if cko:
+                dataset_class_lookup[cko] = cid
+
+    polygons = []
+    filtered_noise_count = 0
+    total_detected = 0
+
+    if res.masks is not None and res.boxes is not None:
+        boxes_cls = res.boxes.cls.cpu().numpy().astype(int)
+        boxes_conf = res.boxes.conf.cpu().numpy().astype(float)
+        masks_xyn = res.masks.xyn
+
+        for poly_idx, (m_cid, m_conf, xyn) in enumerate(zip(boxes_cls, boxes_conf, masks_xyn)):
+            total_detected += 1
+            if len(xyn) < 3:
+                filtered_noise_count += 1
+                continue
+
+            pts_arr = np.array(xyn, dtype=np.float32)
+            # 픽셀 좌표 기준 크기 계산 (20x20px 이하 필터링)
+            pixel_xs = pts_arr[:, 0] * img_w
+            pixel_ys = pts_arr[:, 1] * img_h
+            box_w = float(np.max(pixel_xs) - np.min(pixel_xs))
+            box_h = float(np.max(pixel_ys) - np.min(pixel_ys))
+
+            if box_w <= 20.0 or box_h <= 20.0:
+                filtered_noise_count += 1
+                continue
+
+            # 폴리곤 단순화
+            pts_1000 = (pts_arr * 1000.0).astype(np.float32)
+            peri = cv2.arcLength(pts_1000, True)
+            approx = cv2.approxPolyDP(pts_1000, 0.0015 * peri, True)
+            if len(approx) < 3:
+                approx = pts_1000
+            norm_pts = np.clip(approx.reshape(-1, 2) / 1000.0, 0.0, 1.0).tolist()
+
+            # 클래스 ID 매핑
+            model_cname = model_names.get(m_cid, str(m_cid))
+            m_cname_lower = str(model_cname).lower()
+            known_ko = KNOWN_CLASSES.get(m_cname_lower, {}).get("label_ko", "").lower()
+
+            target_cid = None
+            if m_cname_lower in dataset_class_lookup:
+                target_cid = dataset_class_lookup[m_cname_lower]
+            elif known_ko and known_ko in dataset_class_lookup:
+                target_cid = dataset_class_lookup[known_ko]
+            elif m_cid in state.classes:
+                target_cid = m_cid
+            else:
+                target_cid = m_cid
+
+            cinfo = state.classes.get(target_cid, {})
+            cname = cinfo.get("name", model_cname)
+            label_ko = cinfo.get("label_ko", KNOWN_CLASSES.get(m_cname_lower, {}).get("label_ko", model_cname))
+            color = cinfo.get("color", "#00e5ff")
+
+            polygons.append({
+                "id": len(polygons),
+                "class_id": int(target_cid),
+                "class_name": cname,
+                "label_ko": label_ko,
+                "color": color,
+                "confidence": round(float(m_conf), 3),
+                "points": norm_pts,
+                "box_w": round(box_w, 1),
+                "box_h": round(box_h, 1)
+            })
+
+    is_in_folder = False
+    if state.dataset_path and state.dataset_path.exists():
+        try:
+            target_model_file.absolute().relative_to(state.dataset_path.resolve())
+            is_in_folder = True
+        except ValueError:
+            try:
+                target_model_file.resolve().relative_to(state.dataset_path.resolve())
+                is_in_folder = True
+            except ValueError:
+                is_in_folder = False
+
+    return jsonify({
+        "success": True,
+        "model_name": target_model_file.name,
+        "model_path": str(target_model_file),
+        "is_in_folder": is_in_folder,
+        "total_detected": total_detected,
+        "recommended_count": len(polygons),
+        "filtered_noise_count": filtered_noise_count,
+        "polygons": polygons,
     })
 
 
