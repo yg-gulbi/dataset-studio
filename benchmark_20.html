@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>AI 자동 폴리곤 정밀 보정 20장 벤치마크 결과</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #0F172A; color: #F8FAFC; margin: 0; padding: 24px; }
+        h1 { text-align: center; color: #38BDF8; margin-bottom: 8px; }
+        .subtitle { text-align: center; color: #94A3B8; margin-bottom: 32px; font-size: 15px; }
+        .grid { display: flex; flex-direction: column; gap: 32px; max-width: 1400px; margin: 0 auto; }
+        .sample-card { background: #1E293B; border-radius: 12px; overflow: hidden; border: 1px solid #334155; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.3); }
+        .card-header { padding: 14px 20px; background: #0F172A; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #334155; }
+        .card-header h3 { margin: 0; font-size: 16px; color: #F1F5F9; font-family: monospace; }
+        .badge { background: #2563EB; color: white; padding: 4px 10px; border-radius: 6px; font-size: 13px; font-weight: bold; }
+        .image-wrapper { width: 100%; cursor: pointer; background: #000; text-align: center; }
+        .image-wrapper img { width: 100%; height: auto; display: block; }
+        .card-footer { padding: 14px 20px; background: #1E293B; font-size: 14px; border-top: 1px solid #334155; }
+        .card-footer strong { color: #38BDF8; }
+        .card-footer ul { margin: 6px 0 0 0; padding-left: 20px; color: #CBD5E1; }
+        .card-footer li { margin-bottom: 4px; }
+    </style>
+</head>
+<body>
+    <h1>AI 자동 폴리곤 정밀 보정 20장 검증 갤러리</h1>
+    <div class="subtitle">미검수 186번 데이터셋 중 20장 무작위 추출 | 좌측: 기존 의사라벨 vs 우측: AI 정밀 보정 및 오탐 필터링 결과</div>
+    <div class="grid">
+        
+        <div class="sample-card">
+            <div class="card-header">
+                <h3>#01. 186_186_barrier_free_DC0201_2020-12-02 151847_0P_7876_b0 (train)</h3>
+                <span class="badge">기존: 1개 → 보정 후: 2개</span>
+            </div>
+            <div class="image-wrapper">
+                <img src="static/benchmark_20/sample_01_186_186_barrier_free_DC02.jpg" alt="186_186_barrier_free_DC0201_2020-12-02 151847_0P_7876_b0" onclick="window.open(this.src)">
+            </div>
+            <div class="card-footer">
+                <strong>주요 AI 수정/보정 내역:</strong>
+                <ul><li>AI 고신뢰도(0.94) [계단] 정밀 보강</li></ul>
+            </div>
+        </div>
+        
+        <div class="sample-card">
+            <div class="card-header">
+                <h3>#02. 186_186_barrier_free_DC0109_2020-12-15 131306_A0_2857_b0 (train)</h3>
+                <span class="badge">기존: 5개 → 보정 후: 5개</span>
+            </div>
+            <div class="image-wrapper">
+                <img src="static/benchmark_20/sample_02_186_186_barrier_free_DC01.jpg" alt="186_186_barrier_free_DC0109_2020-12-15 131306_A0_2857_b0" onclick="window.open(this.src)">
+            </div>
+            <div class="card-footer">
+                <strong>주요 AI 수정/보정 내역:</strong>
+                <ul><li>AI 고신뢰도(0.70) [점형 점자] 정밀 보강</li><li>고해상도 실물 [차량] 윤곽선 보정</li></ul>
+            </div>
+        </div>
+        
+        <div class="sample-card">
+            <div class="card-header">
+                <h3>#03. 186_186_barrier_free_DC0203_2020-10-07 135947_00_3768_b1 (train)</h3>
+                <span class="badge">기존: 1개 → 보정 후: 3개</span>
+            </div>
+            <div class="image-wrapper">
+                <img src="static/benchmark_20/sample_03_186_186_barrier_free_DC02.jpg" alt="186_186_barrier_free_DC0203_2020-10-07 135947_00_3768_b1" onclick="window.open(this.src)">
+            </div>
+            <div class="card-footer">
+                <strong>주요 AI 수정/보정 내역:</strong>
+                <ul><li>AI 고신뢰도(0.90) [승강기] 정밀 보강</li><li>AI 고신뢰도(0.88) [승강기] 정밀 보강</li></ul>
+            </div>
+        </div>
+        
+        <div class="sample-card">
+            <div class="card-header">
+                <h3>#04. 186_186_barrier_free_DC0201_2020-11-05 141123_00_2313_b0 (train)</h3>
+                <span class="badge">기존: 2개 → 보정 후: 3개</span>
+            </div>
+            <div class="image-wrapper">
+                <img src="static/benchmark_20/sample_04_186_186_barrier_free_DC02.jpg" alt="186_186_barrier_free_DC0201_2020-11-05 141123_00_2313_b0" onclick="window.open(this.src)">
+            </div>
+            <div class="card-footer">
+                <strong>주요 AI 수정/보정 내역:</strong>
+                <ul><li>AI 고신뢰도(0.88) [계단] 정밀 보강</li></ul>
+            </div>
+        </div>
+        
+        <div class="sample-card">
+            <div class="card-header">
+                <h3>#05. 186_186_barrier_free_DC0108_2020-11-30 114634_00_8100_b0 (train)</h3>
+                <span class="badge">기존: 2개 → 보정 후: 2개</span>
+            </div>
+            <div class="image-wrapper">
+                <img src="static/benchmark_20/sample_05_186_186_barrier_free_DC01.jpg" alt="186_186_barrier_free_DC0108_2020-11-30 114634_00_8100_b0" onclick="window.open(this.src)">
+            </div>
+            <div class="card-footer">
+                <strong>주요 AI 수정/보정 내역:</strong>
+                <ul><li>AI 고신뢰도(0.91) [점형 점자] 정밀 보강</li></ul>
+            </div>
+        </div>
+        
+        <div class="sample-card">
+            <div class="card-header">
+                <h3>#06. 186_186_barrier_free_DC0109_2020-12-02 091109_AP_4979_b0 (train)</h3>
+                <span class="badge">기존: 7개 → 보정 후: 7개</span>
+            </div>
+            <div class="image-wrapper">
+                <img src="static/benchmark_20/sample_06_186_186_barrier_free_DC01.jpg" alt="186_186_barrier_free_DC0109_2020-12-02 091109_AP_4979_b0" onclick="window.open(this.src)">
+            </div>
+            <div class="card-footer">
+                <strong>주요 AI 수정/보정 내역:</strong>
+                <ul><li>AI 고신뢰도(0.87) [점형 점자] 정밀 보강</li><li>AI 고신뢰도(0.44) [점형 점자] 정밀 보강</li><li>고해상도 실물 [차량] 윤곽선 보정</li><li>고해상도 실물 [보행자] 윤곽선 보정</li></ul>
+            </div>
+        </div>
+        
+        <div class="sample-card">
+            <div class="card-header">
+                <h3>#07. 186_186_barrier_free_DC0107_2020-10-05 155723_0P_9179_b0 (train)</h3>
+                <span class="badge">기존: 3개 → 보정 후: 3개</span>
+            </div>
+            <div class="image-wrapper">
+                <img src="static/benchmark_20/sample_07_186_186_barrier_free_DC01.jpg" alt="186_186_barrier_free_DC0107_2020-10-05 155723_0P_9179_b0" onclick="window.open(this.src)">
+            </div>
+            <div class="card-footer">
+                <strong>주요 AI 수정/보정 내역:</strong>
+                <ul><li>AI 고신뢰도(0.87) [선형 점자] 정밀 보강</li><li>고해상도 실물 [차량] 윤곽선 보정</li></ul>
+            </div>
+        </div>
+        
+        <div class="sample-card">
+            <div class="card-header">
+                <h3>#08. 186_186_barrier_free_DC0201_2020-10-22 113115_00_2119_b0 (train)</h3>
+                <span class="badge">기존: 3개 → 보정 후: 4개</span>
+            </div>
+            <div class="image-wrapper">
+                <img src="static/benchmark_20/sample_08_186_186_barrier_free_DC02.jpg" alt="186_186_barrier_free_DC0201_2020-10-22 113115_00_2119_b0" onclick="window.open(this.src)">
+            </div>
+            <div class="card-footer">
+                <strong>주요 AI 수정/보정 내역:</strong>
+                <ul><li>AI 고신뢰도(0.44) [계단] 정밀 보강</li><li>고해상도 실물 [이륜차] 윤곽선 보정</li><li>고해상도 실물 [보행자] 윤곽선 보정</li></ul>
+            </div>
+        </div>
+        
+        <div class="sample-card">
+            <div class="card-header">
+                <h3>#09. 186_186_barrier_free_DC0109_2020-11-11 091558_AP_8957_b0 (train)</h3>
+                <span class="badge">기존: 3개 → 보정 후: 5개</span>
+            </div>
+            <div class="image-wrapper">
+                <img src="static/benchmark_20/sample_09_186_186_barrier_free_DC01.jpg" alt="186_186_barrier_free_DC0109_2020-11-11 091558_AP_8957_b0" onclick="window.open(this.src)">
+            </div>
+            <div class="card-footer">
+                <strong>주요 AI 수정/보정 내역:</strong>
+                <ul><li>AI 고신뢰도(0.86) [선형 점자] 정밀 보강</li><li>AI 고신뢰도(0.79) [계단] 정밀 보강</li><li>고해상도 실물 [이륜차] 윤곽선 보정</li></ul>
+            </div>
+        </div>
+        
+        <div class="sample-card">
+            <div class="card-header">
+                <h3>#10. 186_186_barrier_free_DC0202_2020-12-10 123331_AP_8713_b0 (train)</h3>
+                <span class="badge">기존: 1개 → 보정 후: 2개</span>
+            </div>
+            <div class="image-wrapper">
+                <img src="static/benchmark_20/sample_10_186_186_barrier_free_DC02.jpg" alt="186_186_barrier_free_DC0202_2020-12-10 123331_AP_8713_b0" onclick="window.open(this.src)">
+            </div>
+            <div class="card-footer">
+                <strong>주요 AI 수정/보정 내역:</strong>
+                <ul><li>AI 고신뢰도(0.84) [선형 점자] 정밀 보강</li></ul>
+            </div>
+        </div>
+        
+        <div class="sample-card">
+            <div class="card-header">
+                <h3>#11. 186_186_barrier_free_DC0201_2020-10-30 111231_00_10218_b0 (train)</h3>
+                <span class="badge">기존: 6개 → 보정 후: 7개</span>
+            </div>
+            <div class="image-wrapper">
+                <img src="static/benchmark_20/sample_11_186_186_barrier_free_DC02.jpg" alt="186_186_barrier_free_DC0201_2020-10-30 111231_00_10218_b0" onclick="window.open(this.src)">
+            </div>
+            <div class="card-footer">
+                <strong>주요 AI 수정/보정 내역:</strong>
+                <ul><li>AI 고신뢰도(0.93) [선형 점자] 정밀 보강</li><li>AI 고신뢰도(0.91) [점형 점자] 정밀 보강</li><li>AI 고신뢰도(0.89) [점형 점자] 정밀 보강</li><li>AI 고신뢰도(0.87) [선형 점자] 정밀 보강</li><li>AI 고신뢰도(0.81) [선형 점자] 정밀 보강</li><li>AI 고신뢰도(0.76) [선형 점자] 정밀 보강</li></ul>
+            </div>
+        </div>
+        
+        <div class="sample-card">
+            <div class="card-header">
+                <h3>#12. 186_186_barrier_free_DC0202_2020-11-25 090737_0P_2180_b0 (train)</h3>
+                <span class="badge">기존: 6개 → 보정 후: 7개</span>
+            </div>
+            <div class="image-wrapper">
+                <img src="static/benchmark_20/sample_12_186_186_barrier_free_DC02.jpg" alt="186_186_barrier_free_DC0202_2020-11-25 090737_0P_2180_b0" onclick="window.open(this.src)">
+            </div>
+            <div class="card-footer">
+                <strong>주요 AI 수정/보정 내역:</strong>
+                <ul><li>AI 고신뢰도(0.91) [계단] 정밀 보강</li><li>고해상도 실물 [보행자] 윤곽선 보정</li><li>고해상도 실물 [차량] 윤곽선 보정</li></ul>
+            </div>
+        </div>
+        
+        <div class="sample-card">
+            <div class="card-header">
+                <h3>#13. 186_186_barrier_free_DC0110_2020-11-03 130540_00_454_b0 (train)</h3>
+                <span class="badge">기존: 1개 → 보정 후: 2개</span>
+            </div>
+            <div class="image-wrapper">
+                <img src="static/benchmark_20/sample_13_186_186_barrier_free_DC01.jpg" alt="186_186_barrier_free_DC0110_2020-11-03 130540_00_454_b0" onclick="window.open(this.src)">
+            </div>
+            <div class="card-footer">
+                <strong>주요 AI 수정/보정 내역:</strong>
+                <ul><li>AI 고신뢰도(0.91) [계단] 정밀 보강</li></ul>
+            </div>
+        </div>
+        
+        <div class="sample-card">
+            <div class="card-header">
+                <h3>#14. 186_186_barrier_free_DC0202_2020-10-16 103300_0P_3029_b0 (train)</h3>
+                <span class="badge">기존: 8개 → 보정 후: 10개</span>
+            </div>
+            <div class="image-wrapper">
+                <img src="static/benchmark_20/sample_14_186_186_barrier_free_DC02.jpg" alt="186_186_barrier_free_DC0202_2020-10-16 103300_0P_3029_b0" onclick="window.open(this.src)">
+            </div>
+            <div class="card-footer">
+                <strong>주요 AI 수정/보정 내역:</strong>
+                <ul><li>AI 고신뢰도(0.90) [선형 점자] 정밀 보강</li><li>AI 고신뢰도(0.68) [선형 점자] 정밀 보강</li><li>고해상도 실물 [차량] 윤곽선 보정</li></ul>
+            </div>
+        </div>
+        
+        <div class="sample-card">
+            <div class="card-header">
+                <h3>#15. 186_186_barrier_free_DC0108_2020-10-12 091143_0P_1288_b0 (train)</h3>
+                <span class="badge">기존: 4개 → 보정 후: 4개</span>
+            </div>
+            <div class="image-wrapper">
+                <img src="static/benchmark_20/sample_15_186_186_barrier_free_DC01.jpg" alt="186_186_barrier_free_DC0108_2020-10-12 091143_0P_1288_b0" onclick="window.open(this.src)">
+            </div>
+            <div class="card-footer">
+                <strong>주요 AI 수정/보정 내역:</strong>
+                <ul><li>AI 고신뢰도(0.89) [계단] 정밀 보강</li><li>고해상도 실물 [차량] 윤곽선 보정</li></ul>
+            </div>
+        </div>
+        
+        <div class="sample-card">
+            <div class="card-header">
+                <h3>#16. 186_186_barrier_free_DC0109_2020-12-11 121920_00_6950_b0 (train)</h3>
+                <span class="badge">기존: 1개 → 보정 후: 2개</span>
+            </div>
+            <div class="image-wrapper">
+                <img src="static/benchmark_20/sample_16_186_186_barrier_free_DC01.jpg" alt="186_186_barrier_free_DC0109_2020-12-11 121920_00_6950_b0" onclick="window.open(this.src)">
+            </div>
+            <div class="card-footer">
+                <strong>주요 AI 수정/보정 내역:</strong>
+                <ul><li>AI 고신뢰도(0.89) [계단] 정밀 보강</li></ul>
+            </div>
+        </div>
+        
+        <div class="sample-card">
+            <div class="card-header">
+                <h3>#17. 186_186_barrier_free_DC0109_2020-11-06 115759_00_6129_b0 (train)</h3>
+                <span class="badge">기존: 6개 → 보정 후: 7개</span>
+            </div>
+            <div class="image-wrapper">
+                <img src="static/benchmark_20/sample_17_186_186_barrier_free_DC01.jpg" alt="186_186_barrier_free_DC0109_2020-11-06 115759_00_6129_b0" onclick="window.open(this.src)">
+            </div>
+            <div class="card-footer">
+                <strong>주요 AI 수정/보정 내역:</strong>
+                <ul><li>AI 고신뢰도(0.80) [점형 점자] 정밀 보강</li><li>AI 고신뢰도(0.47) [선형 점자] 정밀 보강</li><li>고해상도 실물 [차량] 윤곽선 보정</li></ul>
+            </div>
+        </div>
+        
+        <div class="sample-card">
+            <div class="card-header">
+                <h3>#18. 186_186_barrier_free_DC0107_2020-11-10 143354_AP_1888_b0 (train)</h3>
+                <span class="badge">기존: 3개 → 보정 후: 4개</span>
+            </div>
+            <div class="image-wrapper">
+                <img src="static/benchmark_20/sample_18_186_186_barrier_free_DC01.jpg" alt="186_186_barrier_free_DC0107_2020-11-10 143354_AP_1888_b0" onclick="window.open(this.src)">
+            </div>
+            <div class="card-footer">
+                <strong>주요 AI 수정/보정 내역:</strong>
+                <ul><li>AI 고신뢰도(0.91) [점형 점자] 정밀 보강</li></ul>
+            </div>
+        </div>
+        
+        <div class="sample-card">
+            <div class="card-header">
+                <h3>#19. 186_186_barrier_free_DC0203_2020-11-18 095343_00_2692_b0 (train)</h3>
+                <span class="badge">기존: 1개 → 보정 후: 2개</span>
+            </div>
+            <div class="image-wrapper">
+                <img src="static/benchmark_20/sample_19_186_186_barrier_free_DC02.jpg" alt="186_186_barrier_free_DC0203_2020-11-18 095343_00_2692_b0" onclick="window.open(this.src)">
+            </div>
+            <div class="card-footer">
+                <strong>주요 AI 수정/보정 내역:</strong>
+                <ul><li>AI 고신뢰도(0.86) [계단] 정밀 보강</li></ul>
+            </div>
+        </div>
+        
+        <div class="sample-card">
+            <div class="card-header">
+                <h3>#20. 186_186_barrier_free_DC0106_2020-11-20 090000_A0_9137_b0 (train)</h3>
+                <span class="badge">기존: 3개 → 보정 후: 4개</span>
+            </div>
+            <div class="image-wrapper">
+                <img src="static/benchmark_20/sample_20_186_186_barrier_free_DC01.jpg" alt="186_186_barrier_free_DC0106_2020-11-20 090000_A0_9137_b0" onclick="window.open(this.src)">
+            </div>
+            <div class="card-footer">
+                <strong>주요 AI 수정/보정 내역:</strong>
+                <ul><li>AI 고신뢰도(0.48) [계단] 정밀 보강</li><li>AI 고신뢰도(0.45) [계단] 정밀 보강</li><li>고해상도 실물 [보행자] 윤곽선 보정</li></ul>
+            </div>
+        </div>
+        
+    </div>
+</body>
+</html>

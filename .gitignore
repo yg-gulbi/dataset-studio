@@ -1,0 +1,28 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv/
+
+# Application Logs & Temporary files
+*.log
+studio_server.log
+*.bak
+*.swp
+*~
+
+# Data & Packages
+packages/
+datasets/
+labels_backup/
+excluded_images/
+
+# OS & Editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

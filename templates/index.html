@@ -1,0 +1,2367 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dataset Studio & Polygon Lab</title>
+<link rel="icon" type="image/png" href="/static/app_icon.png">
+<style>
+  :root {
+    --bg-window: #181818;
+    --bg-topbar: #232323;
+    --bg-subbar: #2b2b2b;
+    --bg-panel: #242424;
+    --bg-card: #1f1f1f;
+    --bg-input: #151515;
+    --bg-hover: #333333;
+    --bg-active: #3c4456;
+    --border: #383838;
+    --border-light: #484848;
+    --accent: #4772b3;
+    --accent-hover: #5b87cc;
+    --accent-orange: #d16b22;
+    --text: #dfdfdf;
+    --text-muted: #888888;
+    --text-dim: #666666;
+    --resizer-hover: #4772b3;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; }
+  body { background: var(--bg-window); color: var(--text); height: 100vh; display: flex; flex-direction: column; overflow: hidden; user-select: none; }
+
+  /* 1. Blender-Style Top Menu Bar (File, Edit, Tools, View, Help) */
+  .blender-topbar {
+    height: 30px; background: var(--bg-topbar); border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: space-between; padding: 0 10px; font-size: 0.8rem; z-index: 100;
+  }
+  .topbar-left { display: flex; align-items: center; gap: 4px; }
+  .topbar-divider { width: 1px; height: 16px; background: var(--border); margin: 0 6px; }
+  
+  .app-logo {
+    display: flex; align-items: center; gap: 6px; padding: 2px 7px; font-weight: 800; font-size: 0.82rem;
+    color: #fff; cursor: pointer; border-radius: 4px; margin-right: 2px;
+  }
+  .app-logo:hover { background: var(--bg-hover); }
+  .app-logo-badge {
+    background: linear-gradient(135deg, #2563eb, #6366f1);
+    padding: 1px 6px; border-radius: 4px; font-size: 0.72rem; font-weight: 800; color: #fff; letter-spacing: 0.5px;
+  }
+
+  /* Workspace Tabs in Top Bar (Exact Blender 4.x Style) */
+  .workspace-tabs { display: flex; align-items: center; gap: 2px; margin-left: 8px; }
+  .ws-tab {
+    padding: 3px 9px; font-size: 0.76rem; color: #999; cursor: pointer; border-radius: 4px;
+    font-weight: 500; transition: all 0.1s; user-select: none;
+  }
+  .ws-tab:hover { background: #333; color: #fff; }
+  .ws-tab.active { background: #383838; color: #fff; font-weight: 600; border: 1px solid #484848; }
+  .ws-tab-add { font-weight: bold; padding: 2px 7px; color: #888; font-size: 0.85rem; }
+  .ws-tab-add:hover { color: #fff; background: #383838; }
+
+  /* Menu Items & Dropdowns */
+  .menu-group { position: relative; }
+  .menu-trigger {
+    padding: 3px 8px; color: var(--text); cursor: pointer; border-radius: 4px; font-weight: 500; font-size: 0.8rem;
+    transition: background 0.1s;
+  }
+  .menu-trigger:hover, .menu-group.open .menu-trigger { background: var(--bg-hover); color: #fff; }
+  .dropdown-menu {
+    display: none; position: absolute; top: 26px; left: 0; background: #262626; border: 1px solid var(--border-light);
+    border-radius: 4px; min-width: 220px; box-shadow: 0 8px 24px rgba(0,0,0,0.6); z-index: 200; padding: 4px 0;
+  }
+  .menu-group.open .dropdown-menu { display: block; }
+  .menu-item {
+    padding: 6px 14px; font-size: 0.78rem; color: var(--text); display: flex; align-items: center; justify-content: space-between;
+    cursor: pointer; transition: background 0.1s;
+  }
+  .menu-item:hover { background: var(--accent); color: #fff; }
+  .menu-item kbd { font-size: 0.68rem; color: var(--text-muted); font-family: monospace; background: rgba(0,0,0,0.25); padding: 1px 4px; border-radius: 2px; }
+  .menu-item:hover kbd { color: #fff; background: rgba(0,0,0,0.4); }
+  .menu-sep { height: 1px; background: var(--border); margin: 3px 0; }
+
+  /* 2. Blender Sub-Header / Viewport Header (Exact Blender 4.x Style) */
+  .blender-subbar {
+    height: 38px; background: var(--bg-subbar); border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: space-between; padding: 0 10px; font-size: 0.8rem; z-index: 50;
+  }
+  .subbar-left { display: flex; align-items: center; gap: 6px; }
+  .subbar-center { display: flex; align-items: center; gap: 10px; }
+  .subbar-right { display: flex; align-items: center; gap: 6px; }
+
+  .viewport-icon { font-size: 0.85rem; color: #888; margin-right: 2px; display: inline-flex; align-items: center; }
+  
+  /* Blender Object Mode Pill Dropdown */
+  .blender-mode-pill-wrap { position: relative; }
+  .blender-mode-pill {
+    display: flex; align-items: center; gap: 6px; background: #242424; border: 1px solid #444;
+    padding: 3px 9px; border-radius: 4px; font-size: 0.78rem; cursor: pointer; color: #e5e5e5;
+    transition: all 0.1s; font-weight: 500;
+  }
+  .blender-mode-pill:hover { background: #323232; border-color: #555; color: #fff; }
+  #blenderModeMenu { top: 32px; left: 0; min-width: 240px; }
+
+  .select-box-wrap {
+    display: flex; align-items: center; gap: 6px; background: var(--bg-input); border: 1px solid var(--border);
+    padding: 3px 8px; border-radius: 4px;
+  }
+  .select-box-label { font-size: 0.72rem; color: var(--text-muted); font-weight: 600; }
+  .custom-select {
+    background: transparent; border: none; color: #fff; font-size: 0.8rem; font-weight: 600; outline: none; cursor: pointer;
+  }
+  .custom-select option { background: #262626; color: #fff; }
+
+  .file-badge {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.78rem; background: var(--bg-input);
+    padding: 4px 10px; border-radius: 4px; border: 1px solid var(--border); color: #9bb7dd; max-width: 480px;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .status-badge { font-size: 0.72rem; padding: 3px 8px; border-radius: 4px; font-weight: 600; display: flex; align-items: center; gap: 4px; }
+  .status-saved { background: rgba(16, 185, 129, 0.12); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.25); }
+  .status-unsaved { background: rgba(245, 158, 11, 0.12); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.25); }
+
+  .tool-btn {
+    background: var(--bg-card); color: var(--text); border: 1px solid var(--border); padding: 4px 9px;
+    border-radius: 4px; font-size: 0.78rem; cursor: pointer; font-weight: 500; display: flex; align-items: center; gap: 4px;
+    transition: all 0.1s;
+  }
+  .tool-btn:hover { background: var(--bg-hover); color: #fff; border-color: var(--border-light); }
+  .tool-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .divider-v { width: 1px; height: 16px; background: var(--border); }
+
+  /* 3. Main Workspace: 3 Panels with Draggable Resizers */
+  .main-workspace {
+    display: flex; flex: 1; height: calc(100vh - 68px); overflow: hidden; position: relative;
+  }
+
+  /* Left Panel: Image Browser */
+  .sidebar-left {
+    width: 280px; min-width: 220px; max-width: 600px; background: var(--bg-panel);
+    display: flex; flex-direction: column; overflow: hidden;
+  }
+  .panel-header {
+    padding: 8px 10px; background: var(--bg-topbar); border-bottom: 1px solid var(--border);
+    font-size: 0.76rem; font-weight: 700; color: #fff; display: flex; justify-content: space-between; align-items: center;
+    min-width: 0;
+  }
+  .panel-header span:first-child {
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-right: 6px;
+  }
+  .panel-header span:last-child { flex-shrink: 0; }
+  .filter-box { padding: 8px 10px; border-bottom: 1px solid var(--border); display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+  .search-input {
+    width: 100%; background: var(--bg-input); border: 1px solid var(--border); color: #fff; padding: 5px 8px;
+    border-radius: 4px; font-size: 0.78rem; outline: none; box-sizing: border-box;
+  }
+  .search-input:focus { border-color: var(--accent); }
+  .filter-controls { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+  .filter-select {
+    background: var(--bg-input); border: 1px solid var(--border); color: var(--text); padding: 5px 6px;
+    border-radius: 4px; font-size: 0.74rem; outline: none; min-width: 0; width: 100%;
+    text-overflow: ellipsis; white-space: nowrap; overflow: hidden; cursor: pointer; box-sizing: border-box;
+    transition: border-color 0.15s;
+  }
+  .filter-select:hover { border-color: var(--border-light); }
+  .filter-select:focus { border-color: var(--accent); }
+  .filter-subgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; min-width: 0; }
+
+  .image-list { flex: 1; overflow-y: auto; padding: 4px; }
+  .image-item {
+    padding: 6px 8px; border-radius: 4px; margin-bottom: 2px; cursor: pointer;
+    background: var(--bg-card); border: 1px solid transparent; display: flex; flex-direction: column; gap: 2px;
+    transition: all 0.1s;
+  }
+  .image-item:hover { background: #2a2a2a; border-color: #404040; }
+  .image-item.active { background: #323a48; border-color: var(--accent); }
+  .item-title { font-size: 0.76rem; font-family: ui-monospace, monospace; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: #e5e5e5; }
+  .item-meta { display: flex; align-items: center; justify-content: space-between; font-size: 0.68rem; color: var(--text-muted); }
+  .pills { display: flex; gap: 2px; flex-wrap: wrap; }
+  .pill { font-size: 0.6rem; padding: 0 4px; border-radius: 2px; font-weight: bold; color: #000; }
+  .edit-tag { color: #34d399; font-weight: bold; font-size: 0.68rem; }
+
+  /* Center: Canvas Workspace */
+  .canvas-workspace {
+    flex: 1; position: relative; background: #121212; overflow: hidden; display: flex; justify-content: center; align-items: center;
+  }
+  #editorCanvas { cursor: crosshair; display: block; image-rendering: auto; }
+
+  /* Right Panel: Inspector */
+  .sidebar-right {
+    width: 290px; min-width: 180px; max-width: 600px; background: var(--bg-panel);
+    display: flex; flex-direction: column; overflow-y: auto; padding: 10px; gap: 8px;
+  }
+  .panel-section { background: var(--bg-card); border: 1px solid var(--border); border-radius: 6px; padding: 8px; display: flex; flex-direction: column; gap: 6px; }
+  .section-title { font-size: 0.78rem; font-weight: 700; color: #ddd; display: flex; align-items: center; justify-content: space-between; }
+  
+  .class-palette { display: flex; flex-direction: column; gap: 3px; max-height: 200px; overflow-y: auto; padding-right: 2px; }
+  .class-row {
+    display: flex; align-items: center; justify-content: space-between; padding: 4px 6px; background: #1a1a1a;
+    border-radius: 3px; border: 1px solid var(--border); font-size: 0.74rem;
+  }
+  .class-badge-pill { display: flex; align-items: center; gap: 6px; font-weight: 600; }
+  .color-dot { width: 8px; height: 8px; border-radius: 2px; }
+
+  .sel-poly-details { display: flex; flex-direction: column; gap: 5px; }
+  .class-picker { width: 100%; background: var(--bg-input); border: 1px solid var(--border); color: #fff; padding: 4px; border-radius: 3px; font-size: 0.76rem; font-weight: 600; outline: none; }
+
+  .poly-layers { display: flex; flex-direction: column; gap: 2px; max-height: 180px; overflow-y: auto; }
+  .layer-item {
+    padding: 4px 6px; background: #1a1a1a; border: 1px solid transparent; border-radius: 3px;
+    display: flex; align-items: center; justify-content: space-between; font-size: 0.74rem; cursor: pointer;
+  }
+  .layer-item:hover { border-color: #4b5563; }
+  .layer-item.active { border-color: var(--accent); background: #2f3747; }
+  .layer-del-btn { color: #f87171; cursor: pointer; padding: 0 4px; border-radius: 2px; font-weight: bold; }
+  .layer-del-btn:hover { background: rgba(239, 68, 68, 0.2); }
+
+  /* Cheatsheet */
+  .cheatsheet { font-size: 0.7rem; color: var(--text-muted); line-height: 1.5; background: #191919; padding: 8px; border-radius: 4px; border: 1px solid var(--border); }
+  .cheatsheet kbd { background: #2b2b2b; padding: 1px 4px; border-radius: 2px; font-family: monospace; color: #ddd; }
+
+  /* 4. Draggable Splitter Resizers */
+  .resizer {
+    width: 5px; background: var(--border); cursor: col-resize; transition: background 0.15s; z-index: 10;
+  }
+  .resizer:hover, .resizer.dragging { background: var(--resizer-hover); }
+
+  /* Modal System */
+  .modal-backdrop {
+    display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); backdrop-filter: blur(4px);
+    z-index: 500; align-items: center; justify-content: center;
+  }
+  .modal-backdrop.open { display: flex; }
+  .modal-window {
+    background: #242424; border: 1px solid var(--border-light); border-radius: 6px;
+    width: 720px; max-width: 95vw; max-height: 88vh; display: flex; flex-direction: column;
+    box-shadow: 0 16px 40px rgba(0,0,0,0.8); overflow: hidden;
+  }
+  .modal-header {
+    padding: 10px 16px; background: #2c2c2c; border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: space-between; font-size: 0.88rem; font-weight: 700; color: #fff;
+  }
+  .modal-close { background: transparent; border: none; color: var(--text-muted); font-size: 1.2rem; cursor: pointer; }
+  .modal-close:hover { color: #fff; }
+  .modal-body { padding: 14px 16px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; }
+
+  .modal-tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--border); padding-bottom: 6px; }
+  .tab-btn {
+    background: transparent; border: none; color: var(--text-muted); padding: 5px 10px;
+    font-size: 0.8rem; font-weight: 600; cursor: pointer; border-radius: 3px; transition: all 0.1s;
+  }
+  .tab-btn:hover { background: var(--bg-hover); color: var(--text); }
+  .tab-btn.active { background: rgba(71, 114, 179, 0.2); color: #8bb2eb; border: 1px solid rgba(71, 114, 179, 0.35); }
+
+  .tab-content { display: none; flex-direction: column; gap: 10px; }
+  .tab-content.active { display: flex; }
+
+  .form-group { display: flex; flex-direction: column; gap: 3px; }
+  .form-label { font-size: 0.75rem; font-weight: 600; color: var(--text-muted); }
+  .form-control {
+    background: var(--bg-input); border: 1px solid var(--border); color: #fff; padding: 6px 8px;
+    border-radius: 3px; font-size: 0.8rem; outline: none;
+  }
+  .form-control:focus { border-color: var(--accent); }
+  .form-row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+
+  /* Folder Explorer Elements */
+  .explorer-path-bar { display: flex; gap: 6px; align-items: center; background: var(--bg-input); padding: 5px 8px; border-radius: 4px; border: 1px solid var(--border); }
+  .explorer-path-input { flex: 1; background: transparent; border: none; color: #8bb2eb; font-family: monospace; font-size: 0.8rem; outline: none; }
+  .explorer-nav-btn { background: var(--bg-card); border: 1px solid var(--border); color: #fff; padding: 3px 8px; border-radius: 3px; cursor: pointer; font-size: 0.75rem; }
+  .explorer-nav-btn:hover { background: var(--bg-hover); }
+
+  .explorer-container { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; height: 220px; }
+  .explorer-folder-list { background: var(--bg-input); border: 1px solid var(--border); border-radius: 4px; overflow-y: auto; padding: 4px; display: flex; flex-direction: column; gap: 2px; }
+  .explorer-item {
+    display: flex; align-items: center; justify-content: space-between; padding: 5px 8px; border-radius: 3px;
+    font-size: 0.78rem; cursor: pointer; border: 1px solid transparent;
+  }
+  .explorer-item:hover { background: #222; border-color: #383838; }
+  .explorer-item.active { background: #2f3747; border-color: var(--accent); color: #8bb2eb; font-weight: bold; }
+  .explorer-item-badge { font-size: 0.65rem; padding: 1px 4px; border-radius: 2px; background: rgba(71, 114, 179, 0.2); color: #8bb2eb; }
+
+  .explorer-preview-card {
+    background: var(--bg-input); border: 1px solid var(--border); border-radius: 4px; padding: 10px;
+    display: flex; flex-direction: column; justify-content: space-between;
+  }
+  .recent-folders-wrap { display: flex; flex-direction: column; gap: 3px; }
+  .recent-folder-item {
+    display: flex; align-items: center; justify-content: space-between; padding: 4px 8px; background: var(--bg-card);
+    border-radius: 3px; font-size: 0.75rem; cursor: pointer; border: 1px solid var(--border);
+  }
+  .recent-folder-item:hover { background: var(--bg-hover); border-color: #8bb2eb; }
+
+  .task-console {
+    background: #0d0d0d; border: 1px solid #222; border-radius: 4px; padding: 6px 10px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.74rem; color: #a5b4fc;
+    height: 130px; overflow-y: auto; display: flex; flex-direction: column; gap: 2px;
+  }
+  .progress-bar-wrap { width: 100%; height: 5px; background: var(--bg-card); border-radius: 2px; overflow: hidden; margin-top: 2px; }
+  .progress-bar-fill { height: 100%; width: 0%; background: linear-gradient(90deg, #4772b3, #8b5cf6); transition: width 0.2s; }
+
+  /* Toast notification */
+  .toast {
+    position: fixed; bottom: 16px; right: 16px; background: #292929; border: 1px solid var(--border-light); color: #fff;
+    padding: 8px 14px; border-radius: 4px; font-size: 0.8rem; font-weight: 500; z-index: 1000;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.6); opacity: 0; transform: translateY(8px); transition: all 0.15s; pointer-events: none;
+  }
+  .toast.show { opacity: 1; transform: translateY(0); }
+</style>
+</head>
+<body onclick="closeAllMenus(event)">
+
+<!-- 1. Blender-Style Top Menu Bar -->
+<div class="blender-topbar">
+  <div class="topbar-left">
+    <div class="app-logo" onclick="openFolderModal()" title="작업 폴더 열기 (Dataset Studio)">
+      <span class="app-logo-badge">DS</span>
+      <span>Dataset Studio</span>
+    </div>
+
+    <!-- File Menu -->
+    <div class="menu-group" id="menuGroupFile">
+      <div class="menu-trigger" onclick="toggleMenu('menuGroupFile', event)">File</div>
+      <div class="dropdown-menu">
+        <div class="menu-item" onclick="openFolderModal()">
+          <span>📂 작업 폴더 열기 (Open Folder...)</span>
+          <kbd>Ctrl+O</kbd>
+        </div>
+        <div class="menu-item" onclick="openCreateModal()">
+          <span>✨ 새 데이터셋 만들기 (New Dataset...)</span>
+          <kbd>Ctrl+N</kbd>
+        </div>
+        <div class="menu-item" onclick="openClassModal()">
+          <span>⚙️ 클래스 관리 (data.yaml 편집...)</span>
+        </div>
+        <div class="menu-sep"></div>
+        <div class="menu-item" onclick="saveCurrent()">
+          <span>💾 라벨 저장 (Save)</span>
+          <kbd>S / Ctrl+S</kbd>
+        </div>
+        <div class="menu-item" onclick="rebuildDataset()">
+          <span>📦 .tar.gz 패키징 아카이브</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Edit Menu -->
+    <div class="menu-group" id="menuGroupEdit">
+      <div class="menu-trigger" onclick="toggleMenu('menuGroupEdit', event)">Edit</div>
+      <div class="dropdown-menu">
+        <div class="menu-item" onclick="setMode('draw')">
+          <span>✏ 새 폴리곤 그리기 모드</span>
+          <kbd>E</kbd>
+        </div>
+        <div class="menu-item" onclick="setMode('select')">
+          <span>↖ 선택 / 이동 모드</span>
+          <kbd>Esc</kbd>
+        </div>
+        <div class="menu-sep"></div>
+        <div class="menu-item" onclick="deleteSelectedPolygon()">
+          <span>🗑 선택 폴리곤 삭제</span>
+          <kbd>Q / Del</kbd>
+        </div>
+        <div class="menu-item" onclick="triggerPruneNoise()">
+          <span>🧹 20px 극소 노이즈 일괄 정제</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tools Menu -->
+    <div class="menu-group" id="menuGroupTools">
+      <div class="menu-trigger" onclick="toggleMenu('menuGroupTools', event)">Tools</div>
+      <div class="dropdown-menu">
+        <div class="menu-item" onclick="openCreateTabDirect('ai_auto')">
+          <span>🤖 AI 자동 라벨링 (YOLO-Seg)</span>
+        </div>
+        <div class="menu-item" onclick="openCreateTabDirect('filter_clone')">
+          <span>✂️ 정제 & 복제 서브셋 생성</span>
+        </div>
+        <div class="menu-item" onclick="openCreateTabDirect('empty')">
+          <span>📁 빈 데이터셋 구조 생성</span>
+        </div>
+        <div class="menu-sep"></div>
+        <div class="menu-item" onclick="openClassModal()">
+          <span>⚙️ 클래스 정의 및 data.yaml 관리</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- View Menu -->
+    <div class="menu-group" id="menuGroupView">
+      <div class="menu-trigger" onclick="toggleMenu('menuGroupView', event)">View</div>
+      <div class="dropdown-menu">
+        <div class="menu-item" onclick="resetViewFit()">
+          <span>🔍 화면에 맞춤 (Fit)</span>
+          <kbd>F</kbd>
+        </div>
+        <div class="menu-item" onclick="zoomIn()">
+          <span>➕ 화면 확대 (Zoom In)</span>
+          <kbd>+</kbd>
+        </div>
+        <div class="menu-item" onclick="zoomOut()">
+          <span>➖ 화면 축소 (Zoom Out)</span>
+          <kbd>-</kbd>
+        </div>
+        <div class="menu-sep"></div>
+        <div class="menu-item" onclick="openBenchmark()">
+          <span>📊 벤치마크 갤러리</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Help Menu -->
+    <div class="menu-group" id="menuGroupHelp">
+      <div class="menu-trigger" onclick="toggleMenu('menuGroupHelp', event)">Help</div>
+      <div class="dropdown-menu">
+        <div class="menu-item" onclick="alert('⌨ 단축키 안내:\n• A / D (or ← / →) : 이전 / 다음 사진\n• S / Ctrl+S : 라벨 저장\n• Q / Del : 선택 폴리곤 삭제\n• E : 폴리곤 그리기 (2회 누르면 클래스 선택)\n• 0~9 : 클래스 번호 즉시 변경\n• Enter : 그리기 완료\n• Space+드래그 : 화면 이동(Pan)\n• 휠 스크롤 : 줌 인/아웃\n• 꼭짓점 우클릭 : 점 삭제\n• Esc : 그리기 취소 / 선택 모드')">
+          <span>⌨️ 단축키 안내 (Cheatsheet)</span>
+        </div>
+        <div class="menu-item" onclick="window.open('/static/app_icon.png', '_blank')">
+          <span>ℹ️ Dataset Studio 정보</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="topbar-divider"></div>
+
+    <!-- Blender Workspace Tabs -->
+    <div class="workspace-tabs">
+      <div class="ws-tab active" onclick="switchWorkspaceTab('layout')">Layout</div>
+      <div class="ws-tab" onclick="openCreateTabDirect('ai_auto')">AI Auto-Label</div>
+      <div class="ws-tab" onclick="openBenchmark()">Benchmark</div>
+      <div class="ws-tab" onclick="triggerPruneNoise()">Noise Prune</div>
+      <div class="ws-tab" onclick="openClassModal()">Classes</div>
+      <div class="ws-tab ws-tab-add" onclick="openCreateModal()" title="새 데이터셋 마법사">+</div>
+    </div>
+  </div>
+
+  <div style="font-size:0.75rem; color:var(--text-muted); font-family:monospace;" id="statusWorkspacePath">
+    Workspace: -
+  </div>
+</div>
+
+<!-- 2. Blender Sub-Header / Viewport Control Bar -->
+<div class="blender-subbar">
+  <div class="subbar-left">
+    <!-- Viewport Grid Icon -->
+    <span class="viewport-icon" title="Polygon Viewport">▤</span>
+
+    <!-- Mode Selector Dropdown (Exact Blender Object Mode Pill) -->
+    <div class="blender-mode-pill-wrap">
+      <div id="blenderModePill" class="blender-mode-pill" onclick="toggleModeDropdown(event)" title="작업 모드 전환 (단축키: Esc / E)">
+        <span id="blenderModeIcon" style="font-size:0.85rem;">↖</span>
+        <span id="blenderModeText" style="font-weight:600;">Object Mode</span>
+        <span style="font-size:0.65rem; color:#888;">▾</span>
+      </div>
+      <div id="blenderModeMenu" class="dropdown-menu">
+        <div class="menu-item" onclick="setMode('select')">
+          <span>↖ Object Mode (선택 및 버텍스 이동)</span>
+          <kbd>Esc</kbd>
+        </div>
+        <div class="menu-item" onclick="setMode('draw')">
+          <span>✏ Edit Mode (새 폴리곤 그리기)</span>
+          <kbd>E</kbd>
+        </div>
+      </div>
+    </div>
+
+    <!-- Viewport Local Menus: View, Select, Add -->
+    <div class="menu-group" id="subMenuView">
+      <div class="menu-trigger" onclick="toggleMenu('subMenuView', event)">View</div>
+      <div class="dropdown-menu">
+        <div class="menu-item" onclick="resetViewFit()"><span>🔍 화면에 맞춤 (Fit)</span><kbd>F</kbd></div>
+        <div class="menu-item" onclick="zoomIn()"><span>➕ 확대 (Zoom In)</span><kbd>+</kbd></div>
+        <div class="menu-item" onclick="zoomOut()"><span>➖ 축소 (Zoom Out)</span><kbd>-</kbd></div>
+      </div>
+    </div>
+
+    <div class="menu-group" id="subMenuSelect">
+      <div class="menu-trigger" onclick="toggleMenu('subMenuSelect', event)">Select</div>
+      <div class="dropdown-menu">
+        <div class="menu-item" onclick="setMode('select')"><span>↖ 객체 선택 모드</span><kbd>Esc</kbd></div>
+        <div class="menu-item" onclick="deleteSelectedPolygon()"><span>🗑 선택 폴리곤 삭제</span><kbd>Q / Del</kbd></div>
+      </div>
+    </div>
+
+    <div class="menu-group" id="subMenuAdd">
+      <div class="menu-trigger" onclick="toggleMenu('subMenuAdd', event)">Add</div>
+      <div class="dropdown-menu">
+        <div class="menu-item" onclick="setMode('draw')"><span>✏ 새 폴리곤 생성</span><kbd>E</kbd></div>
+      </div>
+    </div>
+
+    <div class="divider-v"></div>
+
+    <!-- Dataset Selector -->
+    <div class="select-box-wrap">
+      <span class="select-box-label">Dataset:</span>
+      <select id="datasetSelect" class="custom-select" onchange="switchDataset(this.value)">
+        <option value="">데이터셋 로딩 중...</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="subbar-center">
+    <div id="currentFileBadge" class="file-badge">이미지 로딩 중...</div>
+    <div id="statusBadge" class="status-badge status-saved">● 저장됨</div>
+  </div>
+
+  <div class="subbar-right">
+    <!-- Active Class Selector -->
+    <div class="select-box-wrap" style="padding:2px 6px;">
+      <span class="select-box-label">Class:</span>
+      <select id="drawClassSelect" class="custom-select" style="max-width:140px;" title="그릴 클래스 선택 (단축키: 0~9, E 2회)"></select>
+    </div>
+
+    <div class="divider-v"></div>
+
+    <button class="tool-btn" onclick="prevImage()" title="이전 이미지 (단축키: A 또는 ←)"><span>◀ [A]</span></button>
+    <button class="tool-btn" onclick="nextImage()" title="다음 이미지 (단축키: D 또는 →)"><span>[D] ▶</span></button>
+    
+    <div class="divider-v"></div>
+    
+    <button class="tool-btn" onclick="zoomIn()" title="확대 (+)"><span>+</span></button>
+    <span id="zoomInfo" style="font-size:0.75rem; font-family:monospace; color:var(--text-muted); min-width:38px; text-align:center;">100%</span>
+    <button class="tool-btn" onclick="zoomOut()" title="축소 (-)"><span>-</span></button>
+    <button class="tool-btn" onclick="resetViewFit()" title="화면 크기에 맞춤 (단축키: F)"><span>Fit</span></button>
+  </div>
+</div>
+
+<!-- 3. Main Workspace: Left Sidebar - Resizer - Center Canvas - Resizer - Right Sidebar -->
+<div class="main-workspace">
+  <!-- Left Panel: Images -->
+  <aside id="sidebarLeft" class="sidebar-left">
+    <div class="panel-header">
+      <span id="dsSummaryTitle">dataset</span>
+      <span id="dsSummaryStats" style="color:var(--text-muted); font-size:0.7rem;">0장</span>
+    </div>
+
+    <div class="filter-box">
+      <input type="text" id="searchInput" class="search-input" placeholder="파일명 검색 (Enter)..." onkeydown="if(event.key==='Enter')loadImages()">
+      <div class="filter-controls">
+        <select id="filterClass" class="filter-select" onchange="loadImages()">
+          <option value="">모든 클래스</option>
+        </select>
+        <div class="filter-subgrid">
+          <select id="filterSplit" class="filter-select" onchange="loadImages()">
+            <option value="all">전체 Split</option>
+            <option value="train">Train</option>
+            <option value="val">Val</option>
+          </select>
+          <select id="filterStatus" class="filter-select" onchange="loadImages()">
+            <option value="all">전체 상태</option>
+            <option value="edited">수정됨</option>
+            <option value="unedited">미수정</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <div id="imageList" class="image-list"></div>
+  </aside>
+
+  <!-- Left Resizer (Draggable Splitter) -->
+  <div id="resizerLeft" class="resizer"></div>
+
+  <!-- Center Canvas -->
+  <main id="canvasWorkspace" class="canvas-workspace">
+    <canvas id="editorCanvas"></canvas>
+  </main>
+
+  <!-- Right Resizer (Draggable Splitter) -->
+  <div id="resizerRight" class="resizer"></div>
+
+  <!-- Right Panel: Inspector -->
+  <aside id="sidebarRight" class="sidebar-right">
+    <!-- Selected Polygon Info -->
+    <div class="panel-section">
+      <div class="section-title">
+        <span>선택된 폴리곤</span>
+        <span id="selPolyBadge" style="font-size:0.72rem; color:var(--text-muted);">없음</span>
+      </div>
+      <div id="selPolyDetails" class="sel-poly-details" style="display:none;">
+        <div class="form-group">
+          <label class="form-label">클래스 변경</label>
+          <select id="selPolyClassPicker" class="class-picker" onchange="changeSelectedPolyClass(this.value)"></select>
+        </div>
+        <div style="display:flex; justify-content:space-between; align-items:center; font-size:0.72rem; color:var(--text-muted); margin-top:2px;">
+          <span id="selPolyPtsCount">버텍스: 0개</span>
+          <button class="tool-btn" style="color:#f87171; border-color:rgba(239,68,68,0.3);" onclick="deleteSelectedPolygon()">삭제 [Q]</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Polygon Layers List -->
+    <div class="panel-section">
+      <div class="section-title">
+        <span>폴리곤 레이어</span>
+        <span id="polyLayersCount" style="font-size:0.72rem; color:var(--text-muted);">0개</span>
+      </div>
+      <div id="polyLayers" class="poly-layers"></div>
+    </div>
+
+    <!-- Active Dataset Classes -->
+    <div class="panel-section">
+      <div class="section-title">
+        <div style="display:flex; align-items:center; gap:6px;">
+          <span>클래스 목록</span>
+          <span id="clsCountBadge" style="font-size:0.72rem; color:var(--text-muted);">0개</span>
+        </div>
+        <button class="tool-btn" style="padding:2px 7px; font-size:0.68rem;" onclick="openClassModal()" title="클래스 이름/색상 편집 및 data.yaml 저장">⚙️ 관리</button>
+      </div>
+      <div id="classPalette" class="class-palette"></div>
+    </div>
+
+    <!-- Cheatsheet -->
+    <div class="cheatsheet">
+      <strong style="color:#ddd; display:block; margin-bottom:4px;">⌨️ 단축키 안내:</strong>
+      • <kbd>A</kbd> / <kbd>D</kbd> or <kbd>←</kbd> / <kbd>→</kbd> : 이전 / 다음 사진<br>
+      • <kbd>S</kbd> or <kbd>Ctrl+S</kbd> : 라벨 저장<br>
+      • <kbd>Q</kbd> (or Del) : 선택 폴리곤 삭제<br>
+      • <kbd>E</kbd> : 새 폴리곤 그리기 (연속 2회: 클래스 선택창)<br>
+      • <kbd>0</kbd>~<kbd>9</kbd> : 그리기 클래스 숫자 단축키 즉시 변경<br>
+      • <kbd>Enter</kbd> : 그리기 완료 (첫 점 연결)<br>
+      • <kbd>Space</kbd> + 드래그 : 화면 이동(Pan)<br>
+      • 마우스 휠 : 마우스 위치 중심 확대/축소<br>
+      • 꼭짓점 우클릭 : 해당 꼭짓점 삭제<br>
+      • <kbd>Esc</kbd> : 그리기 취소 및 선택 모드 복귀
+    </div>
+  </aside>
+</div>
+
+<!-- Folder Browser Modal -->
+<div id="folderModal" class="modal-backdrop">
+  <div class="modal-window">
+    <div class="modal-header">
+      <span>📂 작업 폴더 열기 (범용 데이터셋 선택)</span>
+      <button class="modal-close" onclick="closeFolderModal()">&times;</button>
+    </div>
+
+    <div class="modal-body">
+      <div class="explorer-path-bar">
+        <button class="explorer-nav-btn" onclick="browseUpFolder()" title="상위 폴더로 이동">⬆ 상위</button>
+        <input type="text" id="explorerPathInput" class="explorer-path-input" placeholder="/home/username/..." onkeydown="if(event.key==='Enter')browseFs(this.value)">
+        <button class="explorer-nav-btn" onclick="browseFs(document.getElementById('explorerPathInput').value)">이동</button>
+      </div>
+
+      <div class="explorer-container">
+        <div id="explorerSubdirs" class="explorer-folder-list">
+          <div style="padding:10px; color:var(--text-muted); font-size:0.8rem;">폴더 탐색 중...</div>
+        </div>
+
+        <div class="explorer-preview-card">
+          <div style="display:flex; flex-direction:column; gap:4px;">
+            <div style="font-size:0.82rem; font-weight:700; color:#fff;" id="expPreviewName">폴더를 선택하세요</div>
+            <div style="font-size:0.74rem; color:var(--text-muted); line-height:1.4;" id="expPreviewDetails">
+              경로: -<br>
+              이미지: -<br>
+              라벨: -<br>
+              YOLO 구조: -
+            </div>
+          </div>
+
+          <div style="display:flex; flex-direction:column; gap:4px;">
+            <button id="btnOpenSelectedFolder" class="tool-btn" style="background:var(--accent); justify-content:center; color:#fff;" onclick="confirmOpenFolder(false)">
+              <span>📂 이 폴더 데이터셋으로 열기</span>
+            </button>
+            <button id="btnInitAndOpenFolder" class="tool-btn" style="display:none; justify-content:center; color:#8bb2eb;" onclick="confirmOpenFolder(true)">
+              <span>✨ 이미지들을 YOLO 데이터셋으로 자동 변환</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div style="display:flex; flex-direction:column; gap:4px;">
+        <span style="font-size:0.74rem; font-weight:700; color:var(--text-muted);">🕒 최근 작업한 폴더</span>
+        <div id="recentFoldersList" class="recent-folders-wrap"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Dataset Creation Wizard Modal -->
+<div id="createModal" class="modal-backdrop">
+  <div class="modal-window">
+    <div class="modal-header">
+      <span>✨ 새 데이터셋 만들기 마법사</span>
+      <button class="modal-close" onclick="closeCreateModal()">&times;</button>
+    </div>
+
+    <div class="modal-body">
+      <div class="modal-tabs">
+        <button class="tab-btn active" id="tabBtn_ai_auto" onclick="switchCreateTab('ai_auto')">🤖 AI 자동 라벨링</button>
+        <button class="tab-btn" id="tabBtn_filter_clone" onclick="switchCreateTab('filter_clone')">✂️ 정제 & 복제</button>
+        <button class="tab-btn" id="tabBtn_empty" onclick="switchCreateTab('empty')">📁 빈 데이터셋</button>
+      </div>
+
+      <!-- Tab 1: AI Auto-Label -->
+      <div id="tab_ai_auto" class="tab-content active">
+        <div class="form-row-2">
+          <div class="form-group">
+            <label class="form-label">소스 데이터셋</label>
+            <select id="aiSourceDataset" class="form-control"></select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">YOLO 모델 가중치 (.pt)</label>
+            <select id="aiModelWeight" class="form-control"></select>
+          </div>
+        </div>
+
+        <div class="form-row-2">
+          <div class="form-group">
+            <label class="form-label">신뢰도 임계값 (Confidence)</label>
+            <input type="number" id="aiConfThres" class="form-control" value="0.50" min="0.1" max="0.95" step="0.05">
+          </div>
+          <div class="form-group">
+            <label class="form-label">새 데이터셋 이름</label>
+            <input type="text" id="aiDatasetName" class="form-control" placeholder="예: dataset_auto_11cls_v1">
+          </div>
+        </div>
+
+        <button class="tool-btn" style="background:var(--accent); color:#fff; justify-content:center; padding:8px;" onclick="startAiAutoLabeling()">
+          <span>🚀 AI 자동 라벨링 데이터셋 생성 시작</span>
+        </button>
+      </div>
+
+      <!-- Tab 2: Filter & Noise Prune Clone -->
+      <div id="tab_filter_clone" class="tab-content">
+        <div class="form-group">
+          <label class="form-label">소스 데이터셋</label>
+          <select id="cloneSourceDataset" class="form-control"></select>
+        </div>
+        <div class="form-group">
+          <label class="form-label" style="display:flex; align-items:center; gap:6px;">
+            <input type="checkbox" id="clonePrune20px" checked>
+            <span>면적 20px 미만 극소 노이즈 폴리곤 자동 제거</span>
+          </label>
+        </div>
+        <div class="form-group">
+          <label class="form-label">새 데이터셋 이름</label>
+          <input type="text" id="cloneDatasetName" class="form-control" placeholder="예: dataset_pruned_clean">
+        </div>
+        <button class="tool-btn" style="background:var(--accent); color:#fff; justify-content:center; padding:8px;" onclick="startFilterClone()">
+          <span>📋 정제 복제 시작</span>
+        </button>
+      </div>
+
+      <!-- Tab 3: Empty Dataset -->
+      <div id="tab_empty" class="tab-content">
+        <div class="form-group">
+          <label class="form-label">새 데이터셋 이름</label>
+          <input type="text" id="emptyDatasetName" class="form-control" placeholder="예: custom_dataset_v1">
+        </div>
+        <div class="form-group">
+          <label class="form-label">클래스 목록 (쉼표 구분)</label>
+          <input type="text" id="emptyClasses" class="form-control" placeholder="예: person, car, bicycle (비워두면 기본 클래스 생성)" value="person, car, bicycle">
+        </div>
+        <button class="tool-btn" style="background:var(--accent); color:#fff; justify-content:center; padding:8px;" onclick="startCreateEmpty()">
+          <span>📁 빈 데이터셋 폴더 구조 생성</span>
+        </button>
+      </div>
+
+      <!-- Live Task Monitor Console -->
+      <div id="taskMonitorWrap" style="display:none; flex-direction:column; gap:4px; margin-top:6px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; font-size:0.75rem;">
+          <span id="taskStatusText" style="font-weight:700; color:#8bb2eb;">작업 진행 중...</span>
+          <span id="taskPercentText" style="font-family:monospace; font-weight:700;">0%</span>
+        </div>
+        <div class="progress-bar-wrap">
+          <div id="taskProgressBar" class="progress-bar-fill"></div>
+        </div>
+        <div id="taskConsole" class="task-console"></div>
+        <button id="btnOpenCreatedDataset" class="tool-btn" style="display:none; justify-content:center; background:var(--accent); color:#fff; margin-top:4px;" onclick="openCreatedDatasetNow()">
+          <span>🎉 생성 완료! 이 데이터셋으로 지금 전환하기</span>
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Class Management Modal -->
+<div id="classManageModal" class="modal-backdrop">
+  <div class="modal-window" style="max-width: 680px; max-height: 85vh; display:flex; flex-direction:column;">
+    <div class="modal-header">
+      <div style="display:flex; align-items:center; gap:8px;">
+        <span>⚙️ 클래스 정의 및 data.yaml 관리</span>
+        <span id="classModalDatasetName" style="font-size:0.75rem; color:var(--text-muted); font-family:monospace;"></span>
+      </div>
+      <button class="modal-close" onclick="closeClassModal()">&times;</button>
+    </div>
+
+    <div class="modal-body" style="flex:1; overflow-y:auto; display:flex; flex-direction:column; gap:10px; padding:12px;">
+      <div style="display:flex; justify-content:space-between; align-items:center; background:var(--bg-card); padding:8px 10px; border-radius:4px; border:1px solid var(--border); flex-wrap:wrap; gap:6px;">
+        <span style="font-size:0.76rem; color:var(--text-muted);">
+          현재 폴더의 이미지 라벨링에 사용될 클래스 목록입니다. 저장 시 <code>data.yaml</code>에 즉시 기록됩니다.
+        </span>
+        <div style="display:flex; gap:6px;">
+          <select id="presetSelect" class="filter-select" style="width:auto; padding:3px 8px; font-size:0.72rem;" onchange="applyClassPreset(this.value)">
+            <option value="">📋 프리셋 불러오기...</option>
+            <option value="coco_common">일반 객체 (보행자, 차량, 자전거 등 10종)</option>
+            <option value="traffic_urban">도로/교통/보행 인프라 (11종)</option>
+            <option value="single">단일 클래스 (object 1종)</option>
+            <option value="binary">이진 분류 (positive, negative 2종)</option>
+          </select>
+          <button class="tool-btn" onclick="addNewClassRow()" style="font-size:0.72rem; padding:3px 8px;">+ 클래스 추가</button>
+        </div>
+      </div>
+
+      <div style="max-height:360px; overflow-y:auto; border:1px solid var(--border); border-radius:4px; background:var(--bg-window);">
+        <table style="width:100%; border-collapse:collapse; font-size:0.76rem; text-align:left;">
+          <thead style="background:var(--bg-topbar); position:sticky; top:0; z-index:2; border-bottom:1px solid var(--border);">
+            <tr>
+              <th style="padding:6px 8px; width:45px; color:var(--text-muted);">ID</th>
+              <th style="padding:6px 8px; width:42px; text-align:center; color:var(--text-muted);">색상</th>
+              <th style="padding:6px 8px; color:var(--text-muted);">영문 식별자 (name)</th>
+              <th style="padding:6px 8px; color:var(--text-muted);">한글 표시명 (label_ko)</th>
+              <th style="padding:6px 8px; width:40px; text-align:center; color:var(--text-muted);">삭제</th>
+            </tr>
+          </thead>
+          <tbody id="classTableBody">
+            <!-- Dynamic rows -->
+          </tbody>
+        </table>
+      </div>
+
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-top:4px;">
+        <span id="classModalStatus" style="font-size:0.75rem; color:var(--text-muted);"></span>
+        <div style="display:flex; gap:8px;">
+          <button class="tool-btn" onclick="closeClassModal()">닫기</button>
+          <button class="tool-btn" style="background:var(--accent); color:#fff; font-weight:600; padding:6px 14px;" onclick="saveClassChanges()">
+            <span>💾 data.yaml 저장 및 적용</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="toast" class="toast"></div>
+
+<script>
+// State
+let datasets = [];
+let currentDataset = null;
+let classes = {};
+let images = [];
+let currentImgIndex = -1;
+let currentAnnotation = null;
+let currentImageBitmap = null;
+
+// Interaction & Mode
+let mode = 'select'; // 'select', 'draw'
+let selectedPolyIndex = -1;
+let selectedVertexIndex = -1;
+let hoveredVertex = null;
+let hoveredEdge = null;
+let isDraggingVertex = false;
+let drawingPoints = [];
+let isUnsaved = false;
+let autoSaveTimeout = null;
+let lastETime = 0;
+
+// View Transform
+let view = { x: 0, y: 0, scale: 1.0, isPanning: false, panStartX: 0, panStartY: 0 };
+let spaceDown = false;
+
+// DOM Elements
+const canvas = document.getElementById('editorCanvas');
+const ctx = canvas.getContext('2d');
+const workspace = document.getElementById('canvasWorkspace');
+
+// Tasks & Explorer
+let activeTaskId = null;
+let taskPollInterval = null;
+let createdDatasetPath = null;
+let currentFsData = null;
+let selectedFsPath = null;
+
+// =========================================================================
+// Initialization & Resizers Setup
+// =========================================================================
+window.addEventListener('DOMContentLoaded', async () => {
+  setupResizers();
+  setupEventListeners();
+  await loadDatasetList();
+});
+
+function showToast(msg, duration = 2000) {
+  const toast = document.getElementById('toast');
+  toast.textContent = msg;
+  toast.classList.add('show');
+  setTimeout(() => toast.classList.remove('show'), duration);
+}
+
+// =========================================================================
+// Draggable Panel Resizers (Left & Right Splitters)
+// =========================================================================
+function setupResizers() {
+  const sidebarLeft = document.getElementById('sidebarLeft');
+  const resizerLeft = document.getElementById('resizerLeft');
+  const sidebarRight = document.getElementById('sidebarRight');
+  const resizerRight = document.getElementById('resizerRight');
+
+  // Restore saved widths
+  const savedLeftW = localStorage.getItem('bw_sidebar_left_w');
+  const savedRightW = localStorage.getItem('bw_sidebar_right_w');
+  if (savedLeftW) sidebarLeft.style.width = `${savedLeftW}px`;
+  if (savedRightW) sidebarRight.style.width = `${savedRightW}px`;
+
+  // Left Resizer
+  let isResizingLeft = false;
+  resizerLeft.addEventListener('mousedown', (e) => {
+    isResizingLeft = true;
+    resizerLeft.classList.add('dragging');
+    document.body.style.cursor = 'col-resize';
+    e.preventDefault();
+  });
+
+  // Right Resizer
+  let isResizingRight = false;
+  resizerRight.addEventListener('mousedown', (e) => {
+    isResizingRight = true;
+    resizerRight.classList.add('dragging');
+    document.body.style.cursor = 'col-resize';
+    e.preventDefault();
+  });
+
+  window.addEventListener('mousemove', (e) => {
+    if (isResizingLeft) {
+      const newW = Math.max(180, Math.min(600, e.clientX));
+      sidebarLeft.style.width = `${newW}px`;
+      localStorage.setItem('bw_sidebar_left_w', newW);
+      resizeCanvasOnly();
+    } else if (isResizingRight) {
+      const newW = Math.max(180, Math.min(600, window.innerWidth - e.clientX));
+      sidebarRight.style.width = `${newW}px`;
+      localStorage.setItem('bw_sidebar_right_w', newW);
+      resizeCanvasOnly();
+    }
+  });
+
+  window.addEventListener('mouseup', () => {
+    if (isResizingLeft || isResizingRight) {
+      isResizingLeft = false;
+      isResizingRight = false;
+      resizerLeft.classList.remove('dragging');
+      resizerRight.classList.remove('dragging');
+      document.body.style.cursor = 'default';
+      resizeCanvasOnly();
+    }
+  });
+}
+
+function resizeCanvasOnly() {
+  if (!workspace || !canvas) return;
+  const w = workspace.clientWidth;
+  const h = workspace.clientHeight;
+  if (canvas.width !== w || canvas.height !== h) {
+    canvas.width = w;
+    canvas.height = h;
+    draw();
+  }
+}
+
+// =========================================================================
+// Topbar Menus
+// =========================================================================
+function toggleMenu(menuId, event) {
+  event.stopPropagation();
+  const target = document.getElementById(menuId);
+  const isOpen = target.classList.contains('open');
+  closeAllMenus();
+  if (!isOpen) {
+    target.classList.add('open');
+  }
+}
+
+function closeAllMenus() {
+  document.querySelectorAll('.menu-group').forEach(m => m.classList.remove('open'));
+  const modeMenu = document.getElementById('blenderModeMenu');
+  if (modeMenu) modeMenu.style.display = 'none';
+}
+
+function toggleModeDropdown(event) {
+  event.stopPropagation();
+  const menu = document.getElementById('blenderModeMenu');
+  if (menu) {
+    const isShown = menu.style.display === 'block';
+    closeAllMenus();
+    menu.style.display = isShown ? 'none' : 'block';
+  }
+}
+
+function switchWorkspaceTab(tab) {
+  document.querySelectorAll('.ws-tab').forEach(el => el.classList.remove('active'));
+  if (window.event && window.event.target && !window.event.target.classList.contains('ws-tab-add')) {
+    window.event.target.classList.add('active');
+  }
+}
+
+function openCreateTabDirect(tabKey) {
+  closeAllMenus();
+  openCreateModal();
+  switchCreateTab(tabKey);
+}
+
+// =========================================================================
+// Universal Folder Browser Modal
+// =========================================================================
+function openFolderModal() {
+  closeAllMenus();
+  document.getElementById('folderModal').classList.add('open');
+  loadRecentFolders();
+  browseFs(currentDataset ? currentDataset.path : '');
+}
+
+function closeFolderModal() {
+  document.getElementById('folderModal').classList.remove('open');
+}
+
+async function loadRecentFolders() {
+  try {
+    const res = await fetch('/api/recent_folders');
+    const data = await res.json();
+    const listEl = document.getElementById('recentFoldersList');
+    listEl.innerHTML = '';
+
+    (data.recent_folders || []).forEach(rf => {
+      const el = document.createElement('div');
+      el.className = 'recent-folder-item';
+      el.innerHTML = `
+        <span style="font-weight:600; color:#ddd;">📁 ${rf.name}</span>
+        <span style="font-size:0.7rem; color:var(--text-muted); font-family:monospace;">${rf.path}</span>
+      `;
+      el.onclick = () => {
+        closeFolderModal();
+        switchDataset(rf.path);
+      };
+      listEl.appendChild(el);
+    });
+  } catch (err) {}
+}
+
+async function browseFs(path) {
+  try {
+    const res = await fetch(`/api/browse_fs?path=${encodeURIComponent(path || '')}`);
+    currentFsData = await res.json();
+
+    document.getElementById('explorerPathInput').value = currentFsData.current_path;
+    selectedFsPath = currentFsData.current_path;
+    updateFsPreview(currentFsData);
+
+    const listEl = document.getElementById('explorerSubdirs');
+    listEl.innerHTML = '';
+
+    if (currentFsData.parent_path) {
+      const upItem = document.createElement('div');
+      upItem.className = 'explorer-item';
+      upItem.innerHTML = '<span>📁 .. (상위 폴더)</span>';
+      upItem.onclick = () => browseFs(currentFsData.parent_path);
+      listEl.appendChild(upItem);
+    }
+
+    currentFsData.subdirs.forEach(sd => {
+      const item = document.createElement('div');
+      item.className = 'explorer-item';
+      item.innerHTML = `
+        <span style="display:flex; align-items:center; gap:6px;">
+          📁 ${sd.name}
+        </span>
+        ${sd.is_yolo_dataset ? '<span class="explorer-item-badge">YOLO</span>' : ''}
+      `;
+      item.ondblclick = () => browseFs(sd.path);
+      item.onclick = () => {
+        document.querySelectorAll('.explorer-item').forEach(el => el.classList.remove('active'));
+        item.classList.add('active');
+        selectedFsPath = sd.path;
+        inspectSubdir(sd.path);
+      };
+      listEl.appendChild(item);
+    });
+  } catch (err) {}
+}
+
+function browseUpFolder() {
+  if (currentFsData && currentFsData.parent_path) {
+    browseFs(currentFsData.parent_path);
+  }
+}
+
+async function inspectSubdir(path) {
+  try {
+    const res = await fetch(`/api/browse_fs?path=${encodeURIComponent(path)}`);
+    const data = await res.json();
+    updateFsPreview(data);
+  } catch (err) {}
+}
+
+function updateFsPreview(data) {
+  const nameEl = document.getElementById('expPreviewName');
+  const detailsEl = document.getElementById('expPreviewDetails');
+  const btnInit = document.getElementById('btnInitAndOpenFolder');
+
+  const p = data.current_path;
+  const name = p.split('/').pop() || p;
+  nameEl.textContent = `📁 ${name}`;
+
+  detailsEl.innerHTML = `
+    경로: <span style="color:#8bb2eb; font-family:monospace;">${p}</span><br>
+    감지된 이미지: <strong>${data.raw_images_count}장</strong><br>
+    라벨 파일: <strong>${data.labels_count}개</strong><br>
+    data.yaml: <strong>${data.has_yaml ? '있음' : '없음'}</strong>
+  `;
+
+  if (!data.is_yolo_dataset && data.raw_images_count > 0 && data.labels_count === 0) {
+    btnInit.style.display = 'flex';
+  } else {
+    btnInit.style.display = 'none';
+  }
+}
+
+async function confirmOpenFolder(initIfRaw = false) {
+  if (!selectedFsPath) return;
+  try {
+    showToast('폴더 데이터셋 여는 중...');
+    const res = await fetch('/api/open_folder', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        path: selectedFsPath,
+        init_if_raw: initIfRaw
+      })
+    });
+    const data = await res.json();
+    if (data.success) {
+      closeFolderModal();
+      showToast('작업 폴더 로드 완료');
+      await loadDatasetList();
+    } else {
+      alert(data.error || '폴더 열기 실패');
+    }
+  } catch (err) {}
+}
+
+// =========================================================================
+// Dataset Management
+// =========================================================================
+async function loadDatasetList() {
+  try {
+    const res = await fetch('/api/datasets');
+    const data = await res.json();
+    datasets = data.datasets || [];
+
+    const sel = document.getElementById('datasetSelect');
+    sel.innerHTML = '';
+
+    datasets.forEach(d => {
+      const opt = document.createElement('option');
+      opt.value = d.path;
+      opt.textContent = `${d.name} (${d.total_images.toLocaleString()}장, ${d.num_classes}cls)`;
+      if (d.is_active) opt.selected = true;
+      sel.appendChild(opt);
+    });
+
+    await refreshActiveDataset();
+  } catch (err) {}
+}
+
+async function switchDataset(path) {
+  if (!path) return;
+  try {
+    showToast('데이터셋 전환 중...');
+    const res = await fetch('/api/dataset/select', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ path })
+    });
+    const data = await res.json();
+    if (data.success) {
+      showToast('데이터셋 전환 완료');
+      await refreshActiveDataset();
+    } else {
+      alert(data.error || '전환 실패');
+    }
+  } catch (err) {}
+}
+
+async function refreshActiveDataset() {
+  try {
+    const res = await fetch('/api/dataset/current');
+    currentDataset = await res.json();
+    classes = currentDataset.classes || {};
+
+    document.getElementById('dsSummaryTitle').textContent = currentDataset.name;
+    document.getElementById('dsSummaryStats').textContent = `${currentDataset.total_images.toLocaleString()}장 / ${Object.keys(classes).length}cls`;
+    document.getElementById('statusWorkspacePath').textContent = currentDataset.path;
+
+    renderClassPalette();
+    populateClassDropdowns();
+
+    await loadImages();
+  } catch (err) {}
+}
+
+function renderClassPalette() {
+  const palEl = document.getElementById('classPalette');
+  palEl.innerHTML = '';
+  const cids = Object.keys(classes);
+  document.getElementById('clsCountBadge').textContent = `${cids.length}개`;
+
+  if (cids.length === 0) {
+    palEl.innerHTML = `
+      <div style="padding:16px 8px; text-align:center; color:var(--text-muted); font-size:0.75rem; line-height:1.4;">
+        <span style="display:block; margin-bottom:8px;">정의된 클래스가 없습니다.</span>
+        <button class="tool-btn" style="margin:0 auto; padding:4px 10px; font-size:0.72rem; justify-content:center;" onclick="openClassModal()">
+          ⚙️ 클래스 정의 / data.yaml 생성
+        </button>
+      </div>
+    `;
+    return;
+  }
+
+  for (const [cid, info] of Object.entries(classes)) {
+    const row = document.createElement('div');
+    row.className = 'class-row';
+    const label = info.label_ko || info.name || `클래스 ${cid}`;
+    const name = info.name || `class_${cid}`;
+    row.innerHTML = `
+      <div class="class-badge-pill" onclick="openClassModal()" title="클래스 관리 열기 (클릭하여 편집)" style="cursor:pointer;">
+        <span class="color-dot" style="background:${info.color || '#38BDF8'};"></span>
+        <span style="color:#ddd;">[${cid}] ${label}</span>
+        <span style="font-size:0.68rem; color:var(--text-muted);">(${name})</span>
+      </div>
+    `;
+    palEl.appendChild(row);
+  }
+}
+
+function populateClassDropdowns() {
+  const fCls = document.getElementById('filterClass');
+  const dCls = document.getElementById('drawClassSelect');
+  const sCls = document.getElementById('selPolyClassPicker');
+
+  fCls.innerHTML = '<option value="">모든 클래스</option>';
+  dCls.innerHTML = '';
+  sCls.innerHTML = '';
+
+  const cids = Object.keys(classes);
+  if (cids.length === 0) {
+    dCls.innerHTML = '<option value="">(클래스 없음)</option>';
+    sCls.innerHTML = '<option value="">(클래스 없음)</option>';
+    return;
+  }
+
+  for (const [cid, info] of Object.entries(classes)) {
+    const label = info.label_ko || info.name || `클래스 ${cid}`;
+    const name = info.name || `class_${cid}`;
+    fCls.add(new Option(`[${cid}] ${label} (${name})`, cid));
+    dCls.add(new Option(`[${cid}] ${label}`, cid));
+    sCls.add(new Option(`[${cid}] ${label} (${name})`, cid));
+  }
+}
+
+// =========================================================================
+// Image Explorer
+// =========================================================================
+async function loadImages() {
+  const fCls = document.getElementById('filterClass').value;
+  const fSplit = document.getElementById('filterSplit').value;
+  const fStat = document.getElementById('filterStatus').value;
+  const q = document.getElementById('searchInput').value;
+
+  const params = new URLSearchParams();
+  if (fCls !== '') params.set('class_id', fCls);
+  if (fStat !== 'all') params.set('status', fStat);
+  if (q !== '') params.set('query', q);
+
+  const res = await fetch(`/api/images?${params.toString()}`);
+  const data = await res.json();
+  images = data.items || [];
+  
+  if (fSplit !== 'all') {
+    images = images.filter(it => it.split === fSplit);
+  }
+
+  renderImageList();
+
+  if (images.length > 0) {
+    selectImage(0);
+  } else {
+    currentImgIndex = -1;
+    currentAnnotation = null;
+    currentImageBitmap = null;
+    document.getElementById('currentFileBadge').textContent = '이미지가 없습니다.';
+    draw();
+  }
+}
+
+function renderImageList() {
+  const listEl = document.getElementById('imageList');
+  listEl.innerHTML = '';
+  if (images.length === 0) {
+    listEl.innerHTML = '<div style="padding:15px; text-align:center; color:var(--text-muted); font-size:0.75rem;">검색 결과가 없습니다.</div>';
+    return;
+  }
+
+  images.forEach((item, idx) => {
+    const el = document.createElement('div');
+    el.className = `image-item ${idx === currentImgIndex ? 'active' : ''}`;
+    el.id = `img-item-${idx}`;
+    el.onclick = () => selectImage(idx);
+
+    const pillsHtml = item.classes.map(cid => {
+      const c = classes[cid];
+      return `<span class="pill" style="background:${c ? c.color : '#ccc'}">${c ? c.label_ko : cid}</span>`;
+    }).join('');
+
+    const splitLabel = item.split === '.' ? 'ROOT' : item.split.toUpperCase();
+
+    el.innerHTML = `
+      <div class="item-title" title="${item.filename}">${item.filename}</div>
+      <div class="pills">${pillsHtml}</div>
+      <div class="item-meta">
+        <span>${splitLabel} • ${item.poly_count}개</span>
+        ${item.is_edited ? '<span class="edit-tag">✓ 수정됨</span>' : ''}
+      </div>
+    `;
+    listEl.appendChild(el);
+  });
+}
+
+async function selectImage(idx) {
+  if (currentImgIndex >= 0 && currentImgIndex < images.length && currentAnnotation) {
+    const prevItem = images[currentImgIndex];
+    if (isUnsaved) {
+      if (autoSaveTimeout) clearTimeout(autoSaveTimeout);
+      await saveCurrent(true);
+      updateItemBadge(currentImgIndex, true);
+    } else if (!prevItem.is_edited) {
+      try {
+        const sub = prevItem.split === '.' ? prevItem.stem : `${prevItem.split}/${prevItem.stem}`;
+        await fetch(`/api/mark_reviewed/${sub}`, { method: 'POST' });
+        prevItem.is_edited = true;
+        updateItemBadge(currentImgIndex, true);
+      } catch (err) {}
+    }
+  }
+
+  currentImgIndex = idx;
+  const item = images[idx];
+  if (!item) return;
+
+  document.querySelectorAll('.image-item').forEach(el => el.classList.remove('active'));
+  const activeEl = document.getElementById(`img-item-${idx}`);
+  if (activeEl) {
+    activeEl.classList.add('active');
+    activeEl.scrollIntoView({ block: 'nearest' });
+  }
+
+  const splitPath = item.split === '.' ? item.filename : `${item.split}/${item.filename}`;
+  document.getElementById('currentFileBadge').textContent = `[${idx + 1}/${images.length}] ${splitPath}`;
+  setUnsaved(false);
+  selectedPolyIndex = -1;
+  drawingPoints = [];
+
+  const sub = item.split === '.' ? item.stem : `${item.split}/${item.stem}`;
+  const res = await fetch(`/api/annotation/${sub}`);
+  currentAnnotation = await res.json();
+
+  const imgUrl = `/api/image/${splitPath}`;
+  const img = new Image();
+  img.src = imgUrl;
+  await img.decode();
+  currentImageBitmap = img;
+
+  resetViewFit();
+  updateUI();
+  draw();
+}
+
+function updateItemBadge(idx, isEdited) {
+  const el = document.getElementById(`img-item-${idx}`);
+  if (el) {
+    const metaEl = el.querySelector('.item-meta');
+    if (metaEl && isEdited && !metaEl.querySelector('.edit-tag')) {
+      const tag = document.createElement('span');
+      tag.className = 'edit-tag';
+      tag.textContent = '✓ 수정됨';
+      metaEl.appendChild(tag);
+    }
+  }
+}
+
+function prevImage() {
+  if (currentImgIndex > 0) selectImage(currentImgIndex - 1);
+}
+
+function nextImage() {
+  if (currentImgIndex < images.length - 1) selectImage(currentImgIndex + 1);
+}
+
+// =========================================================================
+// Canvas Core & Transforms
+// =========================================================================
+function resetViewFit() {
+  if (!currentImageBitmap) return;
+  const w = workspace.clientWidth;
+  const h = workspace.clientHeight;
+  canvas.width = w;
+  canvas.height = h;
+
+  const imgW = currentImageBitmap.width;
+  const imgH = currentImageBitmap.height;
+  const scale = Math.min((w - 30) / imgW, (h - 30) / imgH, 1.5);
+  view.scale = scale;
+  view.x = (w - imgW * scale) / 2;
+  view.y = (h - imgH * scale) / 2;
+  updateZoomInfo();
+}
+
+function zoomIn() {
+  view.scale = Math.min(view.scale * 1.25, 10.0);
+  updateZoomInfo();
+  draw();
+}
+
+function zoomOut() {
+  view.scale = Math.max(view.scale / 1.25, 0.1);
+  updateZoomInfo();
+  draw();
+}
+
+function updateZoomInfo() {
+  document.getElementById('zoomInfo').textContent = `${Math.round(view.scale * 100)}%`;
+}
+
+function screenToNorm(sx, sy) {
+  if (!currentImageBitmap) return [0, 0];
+  const imgX = (sx - view.x) / view.scale;
+  const imgY = (sy - view.y) / view.scale;
+  const nx = imgX / currentImageBitmap.width;
+  const ny = imgY / currentImageBitmap.height;
+  return [Math.max(0, Math.min(1, nx)), Math.max(0, Math.min(1, ny))];
+}
+
+function normToScreen(nx, ny) {
+  if (!currentImageBitmap) return [0, 0];
+  const imgX = nx * currentImageBitmap.width;
+  const imgY = ny * currentImageBitmap.height;
+  return [view.x + imgX * view.scale, view.y + imgY * view.scale];
+}
+
+// =========================================================================
+// Rendering Engine
+// =========================================================================
+function draw() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  if (!currentImageBitmap) return;
+
+  // 1. Draw Image
+  ctx.drawImage(
+    currentImageBitmap,
+    view.x, view.y,
+    currentImageBitmap.width * view.scale,
+    currentImageBitmap.height * view.scale
+  );
+
+  // 2. Draw Polygons
+  if (currentAnnotation && currentAnnotation.polygons) {
+    currentAnnotation.polygons.forEach((poly, pIdx) => {
+      const isSel = (pIdx === selectedPolyIndex);
+      const pts = poly.points;
+      if (pts.length < 3) return;
+
+      const cinfo = classes[poly.class_id] || { color: poly.color || '#fff' };
+      const color = cinfo.color;
+
+      ctx.beginPath();
+      const [startSx, startSy] = normToScreen(pts[0][0], pts[0][1]);
+      ctx.moveTo(startSx, startSy);
+      for (let i = 1; i < pts.length; i++) {
+        const [sx, sy] = normToScreen(pts[i][0], pts[i][1]);
+        ctx.lineTo(sx, sy);
+      }
+      ctx.closePath();
+
+      ctx.fillStyle = hexToRgba(color, isSel ? 0.45 : 0.22);
+      ctx.fill();
+
+      ctx.lineWidth = isSel ? 2.5 : 1.5;
+      ctx.strokeStyle = isSel ? '#ffffff' : color;
+      ctx.stroke();
+
+      pts.forEach((pt, vIdx) => {
+        const [vx, vy] = normToScreen(pt[0], pt[1]);
+        const isHovered = (hoveredVertex && hoveredVertex.polyIdx === pIdx && hoveredVertex.ptIdx === vIdx);
+
+        ctx.beginPath();
+        ctx.arc(vx, vy, isHovered ? 5.5 : (isSel ? 4 : 2.5), 0, Math.PI * 2);
+        ctx.fillStyle = isHovered ? '#ff0055' : (isSel ? '#ffffff' : color);
+        ctx.fill();
+        ctx.lineWidth = 1;
+        ctx.strokeStyle = '#000000';
+        ctx.stroke();
+      });
+    });
+  }
+
+  // 3. Draw Edge Insertion Guide
+  if (hoveredEdge && mode === 'select') {
+    const [ex, ey] = normToScreen(hoveredEdge.pt[0], hoveredEdge.pt[1]);
+    ctx.beginPath();
+    ctx.arc(ex, ey, 4.5, 0, Math.PI * 2);
+    ctx.fillStyle = '#10b981';
+    ctx.fill();
+    ctx.strokeStyle = '#fff';
+    ctx.lineWidth = 1.2;
+    ctx.stroke();
+  }
+
+  // 4. Draw Ongoing Polygon
+  if (mode === 'draw' && drawingPoints.length > 0) {
+    const cid = parseInt(document.getElementById('drawClassSelect').value) || 0;
+    const cinfo = classes[cid] || { color: '#4772b3' };
+
+    ctx.beginPath();
+    const [startSx, startSy] = normToScreen(drawingPoints[0][0], drawingPoints[0][1]);
+    ctx.moveTo(startSx, startSy);
+    for (let i = 1; i < drawingPoints.length; i++) {
+      const [sx, sy] = normToScreen(drawingPoints[i][0], drawingPoints[i][1]);
+      ctx.lineTo(sx, sy);
+    }
+    ctx.strokeStyle = cinfo.color;
+    ctx.lineWidth = 2.0;
+    ctx.stroke();
+
+    drawingPoints.forEach(pt => {
+      const [vx, vy] = normToScreen(pt[0], pt[1]);
+      ctx.beginPath();
+      ctx.arc(vx, vy, 4, 0, Math.PI * 2);
+      ctx.fillStyle = '#ffffff';
+      ctx.fill();
+      ctx.stroke();
+    });
+  }
+}
+
+function hexToRgba(hex, alpha) {
+  let c = hex.replace('#', '');
+  if (c.length === 3) c = c.split('').map(x => x + x).join('');
+  const num = parseInt(c, 16);
+  return `rgba(${(num >> 16) & 255}, ${(num >> 8) & 255}, ${num & 255}, ${alpha})`;
+}
+
+// =========================================================================
+// Interaction & Original Keyboard Shortcuts (100% Restored)
+// =========================================================================
+function setMode(m) {
+  mode = m;
+  const iconEl = document.getElementById('blenderModeIcon');
+  const textEl = document.getElementById('blenderModeText');
+  if (iconEl && textEl) {
+    if (m === 'draw') {
+      iconEl.innerText = '✏';
+      textEl.innerText = 'Edit Mode';
+    } else {
+      iconEl.innerText = '↖';
+      textEl.innerText = 'Object Mode';
+    }
+  }
+
+  const btnSel = document.getElementById('btnToolSelect');
+  const btnDraw = document.getElementById('btnToolDraw');
+  if (btnSel) btnSel.classList.toggle('active', m === 'select');
+  if (btnDraw) btnDraw.classList.toggle('active', m === 'draw');
+
+  if (m !== 'draw') drawingPoints = [];
+  closeAllMenus();
+  draw();
+}
+
+function openDrawClassPicker() {
+  const sel = document.getElementById('drawClassSelect');
+  if (!sel) return;
+  sel.focus();
+  try {
+    sel.showPicker();
+  } catch (err) {
+    sel.click();
+  }
+}
+
+function setupEventListeners() {
+  window.addEventListener('resize', resetViewFit);
+
+  workspace.addEventListener('wheel', e => {
+    e.preventDefault();
+    const factor = e.deltaY < 0 ? 1.15 : 0.85;
+    const rect = canvas.getBoundingClientRect();
+    const mx = e.clientX - rect.left;
+    const my = e.clientY - rect.top;
+
+    view.x = mx - (mx - view.x) * factor;
+    view.y = my - (my - view.y) * factor;
+    view.scale = Math.max(0.1, Math.min(10.0, view.scale * factor));
+    updateZoomInfo();
+    draw();
+  }, { passive: false });
+
+  canvas.addEventListener('mousemove', e => {
+    const rect = canvas.getBoundingClientRect();
+    const mx = e.clientX - rect.left;
+    const my = e.clientY - rect.top;
+
+    if (view.isPanning) {
+      view.x += mx - view.panStartX;
+      view.y += my - view.panStartY;
+      view.panStartX = mx;
+      view.panStartY = my;
+      draw();
+      return;
+    }
+
+    if (isDraggingVertex && selectedPolyIndex >= 0 && selectedVertexIndex >= 0) {
+      const [nx, ny] = screenToNorm(mx, my);
+      currentAnnotation.polygons[selectedPolyIndex].points[selectedVertexIndex] = [nx, ny];
+      setUnsaved(true);
+      draw();
+      return;
+    }
+
+    if (mode === 'select' && currentAnnotation) {
+      const foundV = hitTestVertex(mx, my);
+      const foundE = foundV ? null : hitTestEdge(mx, my);
+      if (foundV !== hoveredVertex || foundE !== hoveredEdge) {
+        hoveredVertex = foundV;
+        hoveredEdge = foundE;
+        draw();
+      }
+    }
+  });
+
+  canvas.addEventListener('mousedown', e => {
+    const rect = canvas.getBoundingClientRect();
+    const mx = e.clientX - rect.left;
+    const my = e.clientY - rect.top;
+
+    if (e.button === 1 || (e.button === 0 && spaceDown)) {
+      view.isPanning = true;
+      view.panStartX = mx;
+      view.panStartY = my;
+      return;
+    }
+
+    if (e.button === 0) {
+      if (mode === 'select') {
+        const vHit = hitTestVertex(mx, my);
+        if (vHit) {
+          selectedPolyIndex = vHit.polyIdx;
+          selectedVertexIndex = vHit.ptIdx;
+          isDraggingVertex = true;
+          updateUI();
+          draw();
+          return;
+        }
+
+        const eHit = hitTestEdge(mx, my);
+        if (eHit) {
+          const poly = currentAnnotation.polygons[eHit.polyIdx];
+          poly.points.splice(eHit.edgeIdx + 1, 0, eHit.pt);
+          selectedPolyIndex = eHit.polyIdx;
+          selectedVertexIndex = eHit.edgeIdx + 1;
+          isDraggingVertex = true;
+          setUnsaved(true);
+          updateUI();
+          draw();
+          return;
+        }
+
+        const pHit = hitTestPolygon(mx, my);
+        selectedPolyIndex = pHit;
+        selectedVertexIndex = -1;
+        updateUI();
+        draw();
+      } else if (mode === 'draw') {
+        const normPt = screenToNorm(mx, my);
+        if (drawingPoints.length >= 3) {
+          const [startSx, startSy] = normToScreen(drawingPoints[0][0], drawingPoints[0][1]);
+          const dist = Math.hypot(mx - startSx, my - startSy);
+          if (dist < 12) {
+            finishDrawingPolygon();
+            return;
+          }
+        }
+        drawingPoints.push(normPt);
+        draw();
+      }
+    }
+  });
+
+  window.addEventListener('mouseup', () => {
+    if (view.isPanning) view.isPanning = false;
+    if (isDraggingVertex) {
+      isDraggingVertex = false;
+      selectedVertexIndex = -1;
+    }
+  });
+
+  canvas.addEventListener('contextmenu', e => {
+    e.preventDefault();
+    const rect = canvas.getBoundingClientRect();
+    const mx = e.clientX - rect.left;
+    const my = e.clientY - rect.top;
+
+    if (mode === 'draw' && drawingPoints.length > 0) {
+      drawingPoints.pop();
+      draw();
+      return;
+    }
+
+    const vHit = hitTestVertex(mx, my);
+    if (vHit) {
+      const poly = currentAnnotation.polygons[vHit.polyIdx];
+      if (poly.points.length > 3) {
+        poly.points.splice(vHit.ptIdx, 1);
+        setUnsaved(true);
+        updateUI();
+        draw();
+      } else {
+        showToast('폴리곤은 최소 3개의 점이 필요합니다.');
+      }
+    }
+  });
+
+  // Original Keyboard Shortcuts (100% Restored)
+  window.addEventListener('keydown', e => {
+    if ((e.code === 'Space' || e.key === ' ') && !['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) {
+      e.preventDefault();
+      if (document.activeElement !== document.body) document.activeElement.blur();
+      if (!spaceDown) { spaceDown = true; canvas.style.cursor = 'grab'; }
+      return;
+    }
+    if (['INPUT', 'SELECT', 'TEXTAREA'].includes(document.activeElement.tagName)) return;
+
+    if (e.key === 's' || e.key === 'S' || (e.ctrlKey && (e.key === 's' || e.key === 'S'))) {
+      e.preventDefault();
+      saveCurrent();
+    } else if (e.key === 'a' || e.key === 'A' || e.key === 'ArrowLeft') {
+      prevImage();
+    } else if (e.key === 'd' || e.key === 'D' || e.key === 'ArrowRight') {
+      nextImage();
+    } else if (e.key === 'q' || e.key === 'Q' || e.key === 'Delete' || e.key === 'Backspace') {
+      deleteSelectedPolygon();
+    } else if (e.key === 'e' || e.key === 'E') {
+      const now = Date.now();
+      const isQuickDouble = (now - lastETime < 500);
+      lastETime = now;
+
+      if (mode !== 'draw') {
+        setMode('draw');
+        if (isQuickDouble) {
+          setTimeout(() => openDrawClassPicker(), 20);
+        }
+      } else {
+        openDrawClassPicker();
+      }
+    } else if (mode === 'draw' && /^[0-9]$/.test(e.key)) {
+      const cid = parseInt(e.key);
+      const sel = document.getElementById('drawClassSelect');
+      if (sel && classes[cid]) {
+        sel.value = cid;
+        updateUI();
+        showToast(`그리기 클래스: [${cid}] ${classes[cid].label_ko}`);
+      }
+    } else if (e.key === 'Enter' && mode === 'draw') {
+      finishDrawingPolygon();
+    } else if (e.key === 'Escape') {
+      if (mode === 'draw') {
+        drawingPoints = [];
+        setMode('select');
+      } else {
+        selectedPolyIndex = -1;
+        updateUI();
+        draw();
+      }
+    } else if (e.key === 'f' || e.key === 'F') {
+      resetViewFit();
+      draw();
+    }
+  });
+
+  window.addEventListener('keyup', e => {
+    if (e.code === 'Space') {
+      spaceDown = false;
+      canvas.style.cursor = mode === 'draw' ? 'crosshair' : 'default';
+    }
+  });
+}
+
+// =========================================================================
+// Hit Testing Functions
+// =========================================================================
+function hitTestVertex(mx, my) {
+  if (!currentAnnotation) return null;
+  const radius = 8;
+  for (let pIdx = currentAnnotation.polygons.length - 1; pIdx >= 0; pIdx--) {
+    const pts = currentAnnotation.polygons[pIdx].points;
+    for (let vIdx = 0; vIdx < pts.length; vIdx++) {
+      const [vx, vy] = normToScreen(pts[vIdx][0], pts[vIdx][1]);
+      if (Math.hypot(mx - vx, my - vy) <= radius) {
+        return { polyIdx: pIdx, ptIdx: vIdx };
+      }
+    }
+  }
+  return null;
+}
+
+function hitTestEdge(mx, my) {
+  if (!currentAnnotation) return null;
+  const thres = 6;
+  for (let pIdx = currentAnnotation.polygons.length - 1; pIdx >= 0; pIdx--) {
+    const pts = currentAnnotation.polygons[pIdx].points;
+    for (let i = 0; i < pts.length; i++) {
+      const p1 = pts[i];
+      const p2 = pts[(i + 1) % pts.length];
+      const [x1, y1] = normToScreen(p1[0], p1[1]);
+      const [x2, y2] = normToScreen(p2[0], p2[1]);
+
+      const l2 = (x2 - x1) ** 2 + (y2 - y1) ** 2;
+      if (l2 === 0) continue;
+      let t = ((mx - x1) * (x2 - x1) + (my - y1) * (y2 - y1)) / l2;
+      t = Math.max(0, Math.min(1, t));
+      const projX = x1 + t * (x2 - x1);
+      const projY = y1 + t * (y2 - y1);
+      if (Math.hypot(mx - projX, my - projY) <= thres) {
+        return { polyIdx: pIdx, edgeIdx: i, pt: screenToNorm(projX, projY) };
+      }
+    }
+  }
+  return null;
+}
+
+function hitTestPolygon(mx, my) {
+  if (!currentAnnotation) return -1;
+  const [nx, ny] = screenToNorm(mx, my);
+  for (let pIdx = currentAnnotation.polygons.length - 1; pIdx >= 0; pIdx--) {
+    const pts = currentAnnotation.polygons[pIdx].points;
+    if (pointInPolygon([nx, ny], pts)) {
+      return pIdx;
+    }
+  }
+  return -1;
+}
+
+function pointInPolygon(pt, vs) {
+  const x = pt[0], y = pt[1];
+  let inside = false;
+  for (let i = 0, j = vs.length - 1; i < vs.length; j = i++) {
+    const xi = vs[i][0], yi = vs[i][1];
+    const xj = vs[j][0], yj = vs[j][1];
+    const intersect = ((yi > y) !== (yj > y)) && (x < (xj - xi) * (y - yi) / (yj - yi) + xi);
+    if (intersect) inside = !inside;
+  }
+  return inside;
+}
+
+// =========================================================================
+// Polygon Mutations & Drawing Finish
+// =========================================================================
+function finishDrawingPolygon() {
+  if (drawingPoints.length < 3) return;
+  const cid = parseInt(document.getElementById('drawClassSelect').value) || 0;
+  const cinfo = classes[cid] || { name: `class_${cid}`, label_ko: `class_${cid}`, color: '#fff' };
+
+  currentAnnotation.polygons.push({
+    id: currentAnnotation.polygons.length,
+    class_id: cid,
+    class_name: cinfo.name,
+    label_ko: cinfo.label_ko,
+    color: cinfo.color,
+    points: drawingPoints
+  });
+
+  selectedPolyIndex = currentAnnotation.polygons.length - 1;
+  drawingPoints = [];
+  setUnsaved(true);
+  updateUI();
+  draw();
+  showToast(`새 폴리곤 추가: ${cinfo.label_ko}`);
+}
+
+function changeSelectedPolyClass(newCid) {
+  if (selectedPolyIndex < 0 || !currentAnnotation) return;
+  const cid = parseInt(newCid);
+  const cinfo = classes[cid] || { name: `class_${cid}`, label_ko: `class_${cid}`, color: '#fff' };
+  const poly = currentAnnotation.polygons[selectedPolyIndex];
+
+  poly.class_id = cid;
+  poly.class_name = cinfo.name;
+  poly.label_ko = cinfo.label_ko;
+  poly.color = cinfo.color;
+
+  setUnsaved(true);
+  updateUI();
+  draw();
+  showToast(`클래스 변경: ${cinfo.label_ko}`);
+}
+
+function deleteSelectedPolygon() {
+  if (selectedPolyIndex < 0 || !currentAnnotation) return;
+  currentAnnotation.polygons.splice(selectedPolyIndex, 1);
+  selectedPolyIndex = -1;
+  setUnsaved(true);
+  updateUI();
+  draw();
+  showToast('폴리곤 삭제');
+}
+
+function setUnsaved(val) {
+  isUnsaved = val;
+  const badge = document.getElementById('statusBadge');
+  if (val) {
+    badge.className = 'status-badge status-unsaved';
+    badge.textContent = '● 대기중...';
+    if (autoSaveTimeout) clearTimeout(autoSaveTimeout);
+    autoSaveTimeout = setTimeout(async () => {
+      if (isUnsaved) {
+        badge.textContent = '● 저장중...';
+        await saveCurrent(true);
+      }
+    }, 600);
+  } else {
+    badge.className = 'status-badge status-saved';
+    badge.textContent = '● 저장됨';
+    if (autoSaveTimeout) {
+      clearTimeout(autoSaveTimeout);
+      autoSaveTimeout = null;
+    }
+  }
+}
+
+async function saveCurrent(isAuto = false) {
+  if (!currentAnnotation || currentImgIndex < 0) return;
+  const item = images[currentImgIndex];
+
+  try {
+    const sub = item.split === '.' ? item.stem : `${item.split}/${item.stem}`;
+    const res = await fetch(`/api/save/${sub}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        polygons: currentAnnotation.polygons,
+        note: isAuto ? 'Auto saved' : 'Manual save'
+      })
+    });
+    const data = await res.json();
+    if (data.success) {
+      setUnsaved(false);
+      item.is_edited = true;
+      item.poly_count = data.polygons_count;
+      updateItemBadge(currentImgIndex, true);
+      if (!isAuto) showToast('저장 완료');
+    }
+  } catch (err) {}
+}
+
+function updateUI() {
+  const selCard = document.getElementById('selPolyDetails');
+  const selBadge = document.getElementById('selPolyBadge');
+
+  if (selectedPolyIndex >= 0 && currentAnnotation && currentAnnotation.polygons[selectedPolyIndex]) {
+    const poly = currentAnnotation.polygons[selectedPolyIndex];
+    selCard.style.display = 'flex';
+    selBadge.textContent = `#${selectedPolyIndex + 1} (${poly.label_ko || poly.class_id})`;
+    document.getElementById('selPolyClassPicker').value = poly.class_id;
+    document.getElementById('selPolyPtsCount').textContent = `버텍스: ${poly.points.length}개`;
+  } else {
+    selCard.style.display = 'none';
+    selBadge.textContent = '없음';
+  }
+
+  const layersEl = document.getElementById('polyLayers');
+  layersEl.innerHTML = '';
+  if (currentAnnotation && currentAnnotation.polygons) {
+    document.getElementById('polyLayersCount').textContent = `${currentAnnotation.polygons.length}개`;
+    currentAnnotation.polygons.forEach((poly, idx) => {
+      const isSel = (idx === selectedPolyIndex);
+      const cinfo = classes[poly.class_id] || { color: poly.color || '#fff' };
+
+      const lItem = document.createElement('div');
+      lItem.className = `layer-item ${isSel ? 'active' : ''}`;
+      lItem.onclick = () => {
+        selectedPolyIndex = idx;
+        updateUI();
+        draw();
+      };
+      lItem.innerHTML = `
+        <div style="display:flex; align-items:center; gap:6px;">
+          <span class="color-dot" style="background:${cinfo.color}"></span>
+          <span>#${idx + 1} [${poly.class_id}] ${cinfo.label_ko}</span>
+          <span style="font-size:0.68rem; color:var(--text-muted);">(${poly.points.length}pts)</span>
+        </div>
+        <span class="layer-del-btn" onclick="event.stopPropagation(); deleteLayerPolygon(${idx})">&times;</span>
+      `;
+      layersEl.appendChild(lItem);
+    });
+  }
+}
+
+function deleteLayerPolygon(idx) {
+  if (!currentAnnotation) return;
+  currentAnnotation.polygons.splice(idx, 1);
+  if (selectedPolyIndex === idx) selectedPolyIndex = -1;
+  else if (selectedPolyIndex > idx) selectedPolyIndex--;
+  setUnsaved(true);
+  updateUI();
+  draw();
+}
+
+// =========================================================================
+// Noise Pruning & Packaging
+// =========================================================================
+async function triggerPruneNoise() {
+  closeAllMenus();
+  if (!confirm('현재 데이터셋의 면적 20px 미만 극소 노이즈 폴리곤을 일괄 제거하시겠습니까? (원본 라벨 자동 백업됨)')) return;
+
+  showToast('노이즈 정제 중...');
+  const res = await fetch('/api/dataset/prune_noise?min_pixels=20.0', { method: 'POST' });
+  const data = await res.json();
+  if (data.success) {
+    alert(data.message);
+    await refreshActiveDataset();
+  }
+}
+
+async function rebuildDataset() {
+  closeAllMenus();
+  showToast('데이터셋 .tar.gz 압축 패키징 중...');
+  const res = await fetch('/api/rebuild', { method: 'POST' });
+  const data = await res.json();
+  if (data.success) {
+    alert(`✅ 패키징 완료!\n파일명: ${data.archive_name} (${data.size_mb} MB)`);
+  } else {
+    alert(`패키징 실패: ${data.error}`);
+  }
+}
+
+function openBenchmark() {
+  closeAllMenus();
+  window.open('/benchmark', '_blank');
+}
+
+// =========================================================================
+// Dataset Creation Modal & Task Runner
+// =========================================================================
+function openCreateModal() {
+  closeAllMenus();
+  document.getElementById('createModal').classList.add('open');
+  populateModalDropdowns();
+}
+
+function closeCreateModal() {
+  document.getElementById('createModal').classList.remove('open');
+  if (taskPollInterval) clearInterval(taskPollInterval);
+}
+
+async function populateModalDropdowns() {
+  const aiSrc = document.getElementById('aiSourceDataset');
+  const cloneSrc = document.getElementById('cloneSourceDataset');
+  aiSrc.innerHTML = '';
+  cloneSrc.innerHTML = '';
+
+  datasets.forEach(d => {
+    aiSrc.add(new Option(`${d.name} (${d.total_images}장)`, d.path));
+    cloneSrc.add(new Option(`${d.name} (${d.total_images}장)`, d.path));
+  });
+
+  const wRes = await fetch('/api/available_models');
+  const wData = await wRes.json();
+  const wSel = document.getElementById('aiModelWeight');
+  wSel.innerHTML = '';
+  (wData.models || []).forEach(m => {
+    wSel.add(new Option(`${m.filename} (${m.size_mb}MB) - ${m.relative_path}`, m.path));
+  });
+}
+
+function switchCreateTab(tabKey) {
+  document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+
+  const tBtn = document.getElementById(`tabBtn_${tabKey}`);
+  if (tBtn) tBtn.classList.add('active');
+  const tContent = document.getElementById(`tab_${tabKey}`);
+  if (tContent) tContent.classList.add('active');
+}
+
+async function startAiAutoLabeling() {
+  const name = document.getElementById('aiDatasetName').value.trim();
+  const src = document.getElementById('aiSourceDataset').value;
+  const weight = document.getElementById('aiModelWeight').value;
+  const conf = parseFloat(document.getElementById('aiConfThres').value) || 0.5;
+
+  if (!name) return alert('데이터셋 이름을 입력해주세요.');
+
+  const res = await fetch('/api/dataset/create', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      mode: 'ai_auto_label',
+      name: name,
+      source_dataset: src,
+      weight_path: weight,
+      conf_threshold: conf
+    })
+  });
+  const data = await res.json();
+  if (data.success) {
+    trackTask(data.task_id, data.target_dir);
+  } else {
+    alert(data.error);
+  }
+}
+
+// =========================================================================
+// Class Management Modal Logic
+// =========================================================================
+let modalClassesState = {};
+
+const CLASS_PRESETS = {
+  coco_common: [
+    { name: "person", label_ko: "보행자", color: "#F472B6" },
+    { name: "bicycle", label_ko: "자전거/이륜차", color: "#FDE047" },
+    { name: "car", label_ko: "승용차", color: "#60A5FA" },
+    { name: "motorcycle", label_ko: "오토바이", color: "#FB923C" },
+    { name: "bus", label_ko: "버스", color: "#34D399" },
+    { name: "truck", label_ko: "트럭", color: "#F59E0B" },
+    { name: "traffic_light", label_ko: "신호등", color: "#EF4444" },
+    { name: "stop_sign", label_ko: "정지 표지", color: "#F87171" },
+    { name: "bench", label_ko: "벤치", color: "#A3E635" },
+    { name: "backpack", label_ko: "가방", color: "#6366F1" },
+  ],
+  traffic_urban: [
+    { name: "tactile_line", label_ko: "선형 점자", color: "#FACC15" },
+    { name: "tactile_dot", label_ko: "점형 점자", color: "#FB923C" },
+    { name: "stairs", label_ko: "계단", color: "#E879F9" },
+    { name: "elevator", label_ko: "승강기", color: "#38BDF8" },
+    { name: "crosswalk", label_ko: "횡단보도", color: "#4ADE80" },
+    { name: "bollard", label_ko: "볼라드", color: "#F87171" },
+    { name: "movable_signage", label_ko: "입간판", color: "#F97316" },
+    { name: "facility", label_ko: "시설물", color: "#A855F7" },
+    { name: "bicycle", label_ko: "이륜차", color: "#FDE047" },
+    { name: "vehicle", label_ko: "차량", color: "#94A3B8" },
+    { name: "person", label_ko: "보행자", color: "#F472B6" },
+  ],
+  single: [
+    { name: "target_object", label_ko: "목표 객체", color: "#38BDF8" }
+  ],
+  binary: [
+    { name: "positive", label_ko: "정상/양성", color: "#4ADE80" },
+    { name: "negative", label_ko: "불량/음성", color: "#F87171" }
+  ]
+};
+
+function openClassModal() {
+  closeAllMenus();
+  document.getElementById('classManageModal').classList.add('open');
+  document.getElementById('classModalDatasetName').textContent = currentDataset ? `(${currentDataset.name})` : '';
+  document.getElementById('classModalStatus').textContent = '';
+  document.getElementById('presetSelect').value = '';
+
+  modalClassesState = JSON.parse(JSON.stringify(classes || {}));
+  renderClassModalTable();
+}
+
+function closeClassModal() {
+  document.getElementById('classManageModal').classList.remove('open');
+}
+
+function renderClassModalTable() {
+  const tbody = document.getElementById('classTableBody');
+  tbody.innerHTML = '';
+
+  const cids = Object.keys(modalClassesState).map(Number).sort((a, b) => a - b);
+
+  if (cids.length === 0) {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td colspan="5" style="text-align:center; padding:18px; color:var(--text-muted);">
+      등록된 클래스가 없습니다. [+ 클래스 추가] 버튼이나 [프리셋 불러오기]를 사용하세요.
+    </td>`;
+    tbody.appendChild(tr);
+    return;
+  }
+
+  cids.forEach(cid => {
+    const cinfo = modalClassesState[cid] || { name: `class_${cid}`, label_ko: `class_${cid}`, color: '#38BDF8' };
+    const tr = document.createElement('tr');
+    tr.style.borderBottom = '1px solid var(--border)';
+    tr.innerHTML = `
+      <td style="padding:6px 8px; font-weight:700; color:#ddd; font-family:monospace;">${cid}</td>
+      <td style="padding:6px 8px; text-align:center;">
+        <input type="color" value="${cinfo.color || '#38BDF8'}" onchange="updateModalClass(${cid}, 'color', this.value)" style="border:none; width:24px; height:24px; padding:0; background:none; cursor:pointer; vertical-align:middle;">
+      </td>
+      <td style="padding:4px 6px;">
+        <input type="text" class="form-control" style="padding:3px 6px; font-size:0.75rem; font-family:monospace;" value="${cinfo.name || ''}" placeholder="예: car" onchange="updateModalClass(${cid}, 'name', this.value)">
+      </td>
+      <td style="padding:4px 6px;">
+        <input type="text" class="form-control" style="padding:3px 6px; font-size:0.75rem;" value="${cinfo.label_ko || ''}" placeholder="예: 승용차" onchange="updateModalClass(${cid}, 'label_ko', this.value)">
+      </td>
+      <td style="padding:4px 6px; text-align:center;">
+        <button class="tool-btn" style="color:#f87171; border-color:rgba(239,68,68,0.3); padding:2px 6px; font-size:0.7rem;" onclick="deleteModalClass(${cid})">&times;</button>
+      </td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+function updateModalClass(cid, field, value) {
+  if (modalClassesState[cid]) {
+    modalClassesState[cid][field] = value;
+  }
+}
+
+function addNewClassRow() {
+  const existingIds = Object.keys(modalClassesState).map(Number);
+  let nextId = 0;
+  while (existingIds.includes(nextId)) {
+    nextId++;
+  }
+  const defaultColors = ["#38BDF8", "#4ADE80", "#F87171", "#FACC15", "#A855F7", "#FB923C", "#F472B6", "#E879F9"];
+  modalClassesState[nextId] = {
+    name: `class_${nextId}`,
+    label_ko: `클래스 ${nextId}`,
+    color: defaultColors[nextId % defaultColors.length]
+  };
+  renderClassModalTable();
+}
+
+function deleteModalClass(cid) {
+  delete modalClassesState[cid];
+  renderClassModalTable();
+}
+
+function applyClassPreset(presetKey) {
+  if (!presetKey || !CLASS_PRESETS[presetKey]) return;
+  const list = CLASS_PRESETS[presetKey];
+  modalClassesState = {};
+  list.forEach((item, idx) => {
+    modalClassesState[idx] = { ...item };
+  });
+  renderClassModalTable();
+  showToast(`[${presetKey}] 프리셋 ${list.length}개 클래스가 적용되었습니다.`);
+}
+
+async function saveClassChanges() {
+  const statusEl = document.getElementById('classModalStatus');
+  statusEl.textContent = '저장 중...';
+
+  try {
+    const res = await fetch('/api/classes/save', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ classes: modalClassesState })
+    });
+    const data = await res.json();
+    if (res.ok && data.success) {
+      statusEl.textContent = '✅ 저장 완료!';
+      showToast(data.message || 'data.yaml에 저장되었습니다.');
+      await refreshActiveDataset();
+      setTimeout(closeClassModal, 500);
+    } else {
+      statusEl.textContent = `❌ ${data.error || '저장 실패'}`;
+    }
+  } catch (err) {
+    statusEl.textContent = `❌ 오류: ${err.message}`;
+  }
+}
+
+async function startFilterClone() {
+  const name = document.getElementById('cloneDatasetName').value.trim();
+  const src = document.getElementById('cloneSourceDataset').value;
+  const prune20px = document.getElementById('clonePrune20px').checked;
+
+  if (!name) return alert('데이터셋 이름을 입력해주세요.');
+
+  const res = await fetch('/api/dataset/create', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      mode: 'filter_clone',
+      name: name,
+      source_dataset: src,
+      prune_20px: prune20px
+    })
+  });
+  const data = await res.json();
+  if (data.success) {
+    trackTask(data.task_id, data.target_dir);
+  } else {
+    alert(data.error);
+  }
+}
+
+async function startCreateEmpty() {
+  const name = document.getElementById('emptyDatasetName').value.trim();
+  const clsStr = document.getElementById('emptyClasses').value.trim();
+  if (!name) return alert('데이터셋 이름을 입력해주세요.');
+
+  const classesList = clsStr.split(',').map(s => s.trim()).filter(Boolean);
+
+  const res = await fetch('/api/dataset/create', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      mode: 'empty',
+      name: name,
+      classes: classesList
+    })
+  });
+  const data = await res.json();
+  if (data.success) {
+    trackTask(data.task_id, data.target_dir);
+  } else {
+    alert(data.error);
+  }
+}
+
+function trackTask(tid, targetDir) {
+  activeTaskId = tid;
+  createdDatasetPath = targetDir;
+
+  document.getElementById('taskMonitorWrap').style.display = 'flex';
+  document.getElementById('btnOpenCreatedDataset').style.display = 'none';
+  document.getElementById('taskConsole').innerHTML = '';
+
+  if (taskPollInterval) clearInterval(taskPollInterval);
+  taskPollInterval = setInterval(async () => {
+    const res = await fetch(`/api/tasks/${tid}`);
+    const task = await res.json();
+
+    document.getElementById('taskPercentText').textContent = `${task.progress}%`;
+    document.getElementById('taskProgressBar').style.width = `${task.progress}%`;
+    document.getElementById('taskStatusText').textContent = task.message;
+
+    const consoleEl = document.getElementById('taskConsole');
+    consoleEl.innerHTML = (task.logs || []).map(l => `<div>${l}</div>`).join('');
+    consoleEl.scrollTop = consoleEl.scrollHeight;
+
+    if (task.status === 'success') {
+      clearInterval(taskPollInterval);
+      document.getElementById('taskStatusText').textContent = '✅ 데이터셋 생성 성공!';
+      document.getElementById('btnOpenCreatedDataset').style.display = 'flex';
+      loadDatasetList();
+    } else if (task.status === 'failed') {
+      clearInterval(taskPollInterval);
+      document.getElementById('taskStatusText').textContent = `❌ 실패: ${task.error}`;
+    }
+  }, 1000);
+}
+
+async function openCreatedDatasetNow() {
+  if (createdDatasetPath) {
+    closeCreateModal();
+    await switchDataset(createdDatasetPath);
+  }
+}
+</script>
+</body>
+</html>
