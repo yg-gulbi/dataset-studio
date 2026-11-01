@@ -3,954 +3,587 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Dataset Studio & Polygon Lab</title>
+<title>Dataset Studio & 2D Labeling Suite</title>
 <link rel="icon" type="image/png" href="/static/app_icon.png">
 <style>
   :root {
-    --bg-window: #181818;
-    --bg-topbar: #232323;
-    --bg-subbar: #2b2b2b;
-    --bg-panel: #242424;
-    --bg-card: #1f1f1f;
-    --bg-input: #151515;
-    --bg-hover: #333333;
-    --bg-active: #3c4456;
-    --border: #383838;
-    --border-light: #484848;
-    --accent: #4772b3;
-    --accent-hover: #5b87cc;
-    --accent-orange: #d16b22;
-    --text: #dfdfdf;
-    --text-muted: #888888;
-    --text-dim: #666666;
-    --resizer-hover: #4772b3;
+    --bg-app: #181b1f;
+    --bg-header: #20242a;
+    --bg-sidebar: #1e2227;
+    --bg-panel: #22262c;
+    --bg-card: #282d34;
+    --bg-card-sub: #1e2226;
+    --bg-input: #15181b;
+    --bg-hover: #31373f;
+    --bg-active: #2b3948;
+    --border: #353b45;
+    --border-light: #444c58;
+    --accent: #00bfa5;
+    --accent-cyan: #00bfa5;
+    --accent-cyan-hover: #1de9b6;
+    --accent-blue: #3b82f6;
+    --accent-red: #ef4444;
+    --accent-orange: #f59e0b;
+    --text: #e2e8f0;
+    --text-muted: #94a3b8;
+    --text-dim: #64748b;
+    --ruler-bg: #1c2024;
+    --ruler-line: #3b424a;
+    --ruler-text: #718096;
   }
 
   * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; }
-  body { background: var(--bg-window); color: var(--text); height: 100vh; display: flex; flex-direction: column; overflow: hidden; user-select: none; }
+  body { background: var(--bg-app); color: var(--text); height: 100vh; display: flex; flex-direction: column; overflow: hidden; user-select: none; }
 
-  /* 1. Blender-Style Top Menu Bar (File, Edit, Tools, View, Help) */
-  .blender-topbar {
-    height: 30px; background: var(--bg-topbar); border-bottom: 1px solid var(--border);
-    display: flex; align-items: center; justify-content: space-between; padding: 0 10px; font-size: 0.8rem; z-index: 100;
+  /* 1. Top Header Navigation Bar (Reference UI style) */
+  .studio-header {
+    height: 42px; background: var(--bg-header); border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: space-between; padding: 0 14px;
+    z-index: 100; flex-shrink: 0;
   }
-  .topbar-left { display: flex; align-items: center; gap: 4px; }
-  .topbar-divider { width: 1px; height: 16px; background: var(--border); margin: 0 6px; }
-  
-  .app-logo {
-    display: flex; align-items: center; gap: 6px; padding: 2px 7px; font-weight: 800; font-size: 0.82rem;
-    color: #fff; cursor: pointer; border-radius: 4px; margin-right: 2px;
+  .header-left { display: flex; align-items: center; gap: 10px; }
+  .header-logo-badge {
+    width: 26px; height: 26px; border-radius: 5px; background: linear-gradient(135deg, #00bfa5, #0ea5e9);
+    display: flex; align-items: center; justify-content: center; font-size: 0.95rem; font-weight: 900; color: #fff;
+    box-shadow: 0 2px 8px rgba(0, 191, 165, 0.35); cursor: pointer;
   }
-  .app-logo:hover { background: var(--bg-hover); }
-  .app-logo-badge {
-    background: linear-gradient(135deg, #2563eb, #6366f1);
-    padding: 1px 6px; border-radius: 4px; font-size: 0.72rem; font-weight: 800; color: #fff; letter-spacing: 0.5px;
+  .header-task-title {
+    font-size: 0.84rem; font-weight: 600; color: #e2e8f0; display: flex; align-items: center; gap: 6px;
   }
+  .header-task-pill {
+    background: rgba(0, 191, 165, 0.15); border: 1px solid rgba(0, 191, 165, 0.3);
+    color: #00bfa5; font-size: 0.74rem; font-family: monospace; padding: 2px 8px; border-radius: 4px;
+  }
+  .header-right { display: flex; align-items: center; gap: 6px; }
+  .header-icon-btn {
+    width: 32px; height: 32px; border-radius: 5px; background: transparent; border: 1px solid transparent;
+    color: #94a3b8; display: flex; align-items: center; justify-content: center; cursor: pointer;
+    font-size: 1rem; transition: all 0.12s; position: relative;
+  }
+  .header-icon-btn:hover { background: var(--bg-hover); color: #fff; border-color: var(--border); }
+  .header-icon-btn.active { background: rgba(0, 191, 165, 0.15); color: #00bfa5; border-color: rgba(0, 191, 165, 0.35); }
+  .header-icon-btn-danger { color: #f87171; }
+  .header-icon-btn-danger:hover { background: rgba(239, 68, 68, 0.15); color: #ef4444; }
 
-  /* Workspace Tabs in Top Bar (Exact Blender 4.x Style) */
-  .workspace-tabs { display: flex; align-items: center; gap: 2px; margin-left: 8px; }
-  .ws-tab {
-    padding: 3px 9px; font-size: 0.76rem; color: #999; cursor: pointer; border-radius: 4px;
-    font-weight: 500; transition: all 0.1s; user-select: none;
-  }
-  .ws-tab:hover { background: #333; color: #fff; }
-  .ws-tab.active { background: #383838; color: #fff; font-weight: 600; border: 1px solid #484848; }
-  .ws-tab-add { font-weight: bold; padding: 2px 7px; color: #888; font-size: 0.85rem; }
-  .ws-tab-add:hover { color: #fff; background: #383838; }
-
-  /* Menu Items & Dropdowns */
-  .menu-group { position: relative; }
-  .menu-trigger {
-    padding: 3px 8px; color: var(--text); cursor: pointer; border-radius: 4px; font-weight: 500; font-size: 0.8rem;
-    transition: background 0.1s;
-  }
-  .menu-trigger:hover, .menu-group.open .menu-trigger { background: var(--bg-hover); color: #fff; }
-  .dropdown-menu {
-    display: none; position: absolute; top: 26px; left: 0; background: #262626; border: 1px solid var(--border-light);
-    border-radius: 4px; min-width: 220px; box-shadow: 0 8px 24px rgba(0,0,0,0.6); z-index: 200; padding: 4px 0;
-  }
-  .menu-group.open .dropdown-menu { display: block; }
-  .menu-item {
-    padding: 6px 14px; font-size: 0.78rem; color: var(--text); display: flex; align-items: center; justify-content: space-between;
-    cursor: pointer; transition: background 0.1s;
-  }
-  .menu-item:hover { background: var(--accent); color: #fff; }
-  .menu-item kbd { font-size: 0.68rem; color: var(--text-muted); font-family: monospace; background: rgba(0,0,0,0.25); padding: 1px 4px; border-radius: 2px; }
-  .menu-item:hover kbd { color: #fff; background: rgba(0,0,0,0.4); }
-  .menu-sep { height: 1px; background: var(--border); margin: 3px 0; }
-
-  /* 2. Blender Sub-Header / Viewport Header (Exact Blender 4.x Style) */
-  .blender-subbar {
-    height: 38px; background: var(--bg-subbar); border-bottom: 1px solid var(--border);
-    display: flex; align-items: center; justify-content: space-between; padding: 0 10px; font-size: 0.8rem; z-index: 50;
-  }
-  .subbar-left { display: flex; align-items: center; gap: 6px; }
-  .subbar-center { display: flex; align-items: center; gap: 10px; }
-  .subbar-right { display: flex; align-items: center; gap: 6px; }
-
-  .viewport-icon { font-size: 0.85rem; color: #888; margin-right: 2px; display: inline-flex; align-items: center; }
-  
-  /* Blender Object Mode Pill Dropdown */
-  .blender-mode-pill-wrap { position: relative; }
-  .blender-mode-pill {
-    display: flex; align-items: center; gap: 6px; background: #242424; border: 1px solid #444;
-    padding: 3px 9px; border-radius: 4px; font-size: 0.78rem; cursor: pointer; color: #e5e5e5;
-    transition: all 0.1s; font-weight: 500;
-  }
-  .blender-mode-pill:hover { background: #323232; border-color: #555; color: #fff; }
-  #blenderModeMenu { top: 32px; left: 0; min-width: 240px; }
-
-  .select-box-wrap {
-    display: flex; align-items: center; gap: 6px; background: var(--bg-input); border: 1px solid var(--border);
-    padding: 3px 8px; border-radius: 4px;
-  }
-  .select-box-label { font-size: 0.72rem; color: var(--text-muted); font-weight: 600; }
-  .custom-select {
-    background: transparent; border: none; color: #fff; font-size: 0.8rem; font-weight: 600; outline: none; cursor: pointer;
-  }
-  .custom-select option { background: #262626; color: #fff; }
-
-  .file-badge {
-    font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.78rem; background: var(--bg-input);
-    padding: 4px 10px; border-radius: 4px; border: 1px solid var(--border); color: #9bb7dd; max-width: 480px;
-    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-  }
-  .status-badge { font-size: 0.72rem; padding: 3px 8px; border-radius: 4px; font-weight: 600; display: flex; align-items: center; gap: 4px; }
-  .status-saved { background: rgba(16, 185, 129, 0.12); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.25); }
-  .status-unsaved { background: rgba(245, 158, 11, 0.12); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.25); }
-
-  .tool-btn {
-    background: var(--bg-card); color: var(--text); border: 1px solid var(--border); padding: 4px 9px;
-    border-radius: 4px; font-size: 0.78rem; cursor: pointer; font-weight: 500; display: flex; align-items: center; gap: 4px;
-    transition: all 0.1s;
-  }
-  .tool-btn:hover { background: var(--bg-hover); color: #fff; border-color: var(--border-light); }
-  .tool-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
-  .divider-v { width: 1px; height: 16px; background: var(--border); }
-
-  /* 3. Main Workspace: 3 Panels with Draggable Resizers */
-  .main-workspace {
-    display: flex; flex: 1; height: calc(100vh - 68px); overflow: hidden; position: relative;
+  /* 2. Main Body Layout */
+  .studio-body {
+    display: flex; flex: 1; min-height: 0; overflow: hidden; position: relative;
   }
 
-  /* Left Panel: Image Browser */
-  .sidebar-left {
-    width: 280px; min-width: 220px; max-width: 600px; background: var(--bg-panel);
+  /* Left Vertical Toolbar */
+  .studio-vtoolbar {
+    width: 46px; background: var(--bg-sidebar); border-right: 1px solid var(--border);
+    display: flex; flex-direction: column; align-items: center; padding: 8px 0; gap: 6px;
+    flex-shrink: 0; z-index: 40;
+  }
+  .vtool-btn {
+    width: 34px; height: 34px; border-radius: 5px; background: transparent; border: 1px solid transparent;
+    color: #94a3b8; display: flex; align-items: center; justify-content: center; font-size: 1.05rem;
+    cursor: pointer; transition: all 0.1s; position: relative;
+  }
+  .vtool-btn:hover { background: var(--bg-hover); color: #fff; border-color: var(--border-light); }
+  .vtool-btn.active {
+    background: rgba(0, 191, 165, 0.2); border-color: var(--accent-cyan); color: #00bfa5;
+    box-shadow: 0 0 8px rgba(0, 191, 165, 0.25);
+  }
+  .vtool-sep { width: 28px; height: 1px; background: var(--border); margin: 3px 0; }
+
+  /* Center Canvas Viewport & Rulers */
+  .studio-viewport {
+    flex: 1; min-width: 0; position: relative; background: #262a2e;
     display: flex; flex-direction: column; overflow: hidden;
   }
-  .panel-header {
-    padding: 8px 10px; background: var(--bg-topbar); border-bottom: 1px solid var(--border);
-    font-size: 0.76rem; font-weight: 700; color: #fff; display: flex; justify-content: space-between; align-items: center;
-    min-width: 0;
+  .ruler-top-row {
+    height: 20px; background: var(--ruler-bg); border-bottom: 1px solid var(--border);
+    display: flex; flex-shrink: 0;
   }
-  .panel-header span:first-child {
-    overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-right: 6px;
+  .ruler-corner { width: 20px; height: 20px; background: #181b1f; border-right: 1px solid var(--border); flex-shrink: 0; }
+  .ruler-h-canvas { flex: 1; height: 20px; display: block; }
+  .canvas-mid-row {
+    flex: 1; min-height: 0; display: flex; position: relative; overflow: hidden;
   }
-  .panel-header span:last-child { flex-shrink: 0; }
-  .filter-box { padding: 8px 10px; border-bottom: 1px solid var(--border); display: flex; flex-direction: column; gap: 6px; min-width: 0; }
-  .search-input {
-    width: 100%; background: var(--bg-input); border: 1px solid var(--border); color: #fff; padding: 5px 8px;
-    border-radius: 4px; font-size: 0.78rem; outline: none; box-sizing: border-box;
+  .ruler-v-canvas { width: 20px; height: 100%; background: var(--ruler-bg); border-right: 1px solid var(--border); flex-shrink: 0; display: block; }
+  .canvas-container {
+    flex: 1; min-width: 0; height: 100%; position: relative; overflow: hidden; background: #262a2e;
   }
-  .search-input:focus { border-color: var(--accent); }
-  .filter-controls { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
-  .filter-select {
-    background: var(--bg-input); border: 1px solid var(--border); color: var(--text); padding: 5px 6px;
-    border-radius: 4px; font-size: 0.74rem; outline: none; min-width: 0; width: 100%;
-    text-overflow: ellipsis; white-space: nowrap; overflow: hidden; cursor: pointer; box-sizing: border-box;
-    transition: border-color 0.15s;
-  }
-  .filter-select:hover { border-color: var(--border-light); }
-  .filter-select:focus { border-color: var(--accent); }
-  .filter-subgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; min-width: 0; }
+  #editorCanvas { display: block; width: 100%; height: 100%; cursor: crosshair; }
 
-  .image-list { flex: 1; overflow-y: auto; padding: 4px; }
-  .image-item {
-    padding: 6px 8px; border-radius: 4px; margin-bottom: 2px; cursor: pointer;
-    background: var(--bg-card); border: 1px solid transparent; display: flex; flex-direction: column; gap: 2px;
+  /* Size / Spec Overlay Badge on Canvas Top-Right */
+  .viewport-size-badge {
+    position: absolute; top: 12px; right: 14px; background: var(--accent-cyan);
+    color: #0d1117; font-size: 0.76rem; font-weight: 700; font-family: ui-monospace, SFMono-Regular, monospace;
+    padding: 3px 10px; border-radius: 4px; z-index: 20; pointer-events: none;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.4); transition: all 0.15s;
+  }
+  .viewport-size-badge.warning {
+    background: #ef4444; color: #fff; box-shadow: 0 4px 14px rgba(239,68,68,0.5);
+  }
+
+  /* Right Inspector & Management Panel */
+  .studio-right-panel {
+    width: 350px; background: var(--bg-panel); border-left: 1px solid var(--border);
+    display: flex; flex-direction: column; flex-shrink: 0; overflow-y: auto; z-index: 30;
+  }
+  .panel-card-section {
+    border-bottom: 1px solid var(--border); display: flex; flex-direction: column;
+  }
+  .panel-card-header {
+    padding: 8px 12px; background: #1e2227; display: flex; align-items: center; justify-content: space-between;
+    font-size: 0.76rem; font-weight: 700; color: #cbd5e1; letter-spacing: 0.5px;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+  }
+  .panel-card-badge {
+    font-size: 0.68rem; color: #94a3b8; font-weight: 600; font-family: monospace;
+  }
+
+  /* Image Section in Right Panel */
+  .img-search-bar {
+    padding: 6px 10px; background: var(--bg-card-sub); border-bottom: 1px solid var(--border);
+    display: flex; flex-direction: column; gap: 5px;
+  }
+  .img-search-input {
+    width: 100%; background: var(--bg-input); border: 1px solid var(--border); color: #fff;
+    padding: 4px 8px; border-radius: 4px; font-size: 0.76rem; outline: none;
+  }
+  .img-search-input:focus { border-color: var(--accent-cyan); }
+  .img-filter-row { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; }
+  .img-filter-select {
+    background: var(--bg-input); border: 1px solid var(--border); color: #cbd5e1;
+    font-size: 0.72rem; padding: 3px 6px; border-radius: 3px; outline: none;
+  }
+  .image-list-viewport {
+    height: 190px; overflow-y: auto; display: flex; flex-direction: column; gap: 2px; padding: 4px 6px;
+    background: #181b1f;
+  }
+  .img-list-item {
+    display: flex; align-items: center; gap: 8px; padding: 4px 6px; border-radius: 4px;
+    background: var(--bg-card); border: 1px solid transparent; cursor: pointer; transition: all 0.1s;
+  }
+  .img-list-item:hover { background: var(--bg-hover); border-color: var(--border); }
+  .img-list-item.active { background: #243542; border-color: var(--accent-cyan); }
+  .img-thumb-box {
+    width: 44px; height: 30px; border-radius: 3px; background: #111; overflow: hidden; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center; border: 1px solid #333;
+  }
+  .img-thumb-box img { width: 100%; height: 100%; object-fit: cover; }
+  .img-item-meta { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+  .img-item-name {
+    font-size: 0.75rem; font-weight: 600; color: #e2e8f0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .img-item-sub { font-size: 0.66rem; color: var(--text-dim); display: flex; justify-content: space-between; }
+  .img-item-status-icon { font-size: 0.72rem; }
+
+  /* Object Layers Table in Right Panel */
+  .object-table-wrap {
+    max-height: 200px; overflow-y: auto; background: #181b1f; padding: 4px;
+  }
+  .object-row {
+    display: flex; align-items: center; justify-content: space-between; padding: 5px 8px; border-radius: 4px;
+    background: var(--bg-card); border: 1px solid transparent; margin-bottom: 3px; cursor: pointer;
+    font-size: 0.76rem; transition: all 0.1s;
+  }
+  .object-row:hover { background: var(--bg-hover); border-color: var(--border); }
+  .object-row.active { background: #263644; border-color: var(--accent-cyan); }
+  .object-left-info { display: flex; align-items: center; gap: 6px; min-width: 0; }
+  .object-color-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .object-title {
+    font-weight: 600; color: #e2e8f0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .object-badge-warning {
+    font-size: 0.64rem; padding: 1px 4px; border-radius: 3px; background: rgba(239,68,68,0.2);
+    color: #ef4444; border: 1px solid rgba(239,68,68,0.4); margin-left: 4px;
+  }
+  .object-actions { display: flex; align-items: center; gap: 6px; }
+  .object-btn-del {
+    color: #94a3b8; cursor: pointer; font-size: 0.85rem; padding: 1px 4px; border-radius: 3px;
+  }
+  .object-btn-del:hover { color: #ef4444; background: rgba(239,68,68,0.15); }
+
+  /* Object Tag & Attributes Section */
+  .tag-section-body {
+    padding: 10px 12px; display: flex; flex-direction: column; gap: 8px; background: #1e2227;
+  }
+  .tag-field-row { display: flex; align-items: center; justify-content: space-between; font-size: 0.74rem; }
+  .tag-label { color: var(--text-muted); font-weight: 500; }
+  .tag-value-select {
+    width: 60%; background: var(--bg-input); border: 1px solid var(--border); color: #fff;
+    padding: 4px 6px; border-radius: 4px; font-size: 0.76rem; outline: none; font-weight: 600;
+  }
+  .tag-value-select:focus { border-color: var(--accent-cyan); }
+
+  /* Class Palette Bar */
+  .class-palette-grid {
+    padding: 8px 10px; display: flex; flex-wrap: wrap; gap: 4px; background: #181b1f; max-height: 140px; overflow-y: auto;
+  }
+  .class-chip {
+    display: inline-flex; align-items: center; gap: 5px; padding: 3px 8px; border-radius: 4px;
+    background: var(--bg-card); border: 1px solid var(--border); font-size: 0.72rem; cursor: pointer;
     transition: all 0.1s;
   }
-  .image-item:hover { background: #2a2a2a; border-color: #404040; }
-  .image-item.active { background: #323a48; border-color: var(--accent); }
-  .item-title { font-size: 0.76rem; font-family: ui-monospace, monospace; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: #e5e5e5; }
-  .item-meta { display: flex; align-items: center; justify-content: space-between; font-size: 0.68rem; color: var(--text-muted); }
-  .pills { display: flex; gap: 2px; flex-wrap: wrap; }
-  .pill { font-size: 0.6rem; padding: 0 4px; border-radius: 2px; font-weight: bold; color: #000; }
-  .edit-tag { color: #34d399; font-weight: bold; font-size: 0.68rem; }
+  .class-chip:hover { border-color: var(--border-light); background: var(--bg-hover); }
+  .class-chip.active { border-color: var(--accent-cyan); background: rgba(0, 191, 165, 0.2); }
+  .class-chip-dot { width: 7px; height: 7px; border-radius: 50%; }
 
-  /* Center: Canvas Workspace */
-  .canvas-workspace {
-    flex: 1; position: relative; background: #121212; overflow: hidden; display: flex; justify-content: center; align-items: center;
+  /* 3. Bottom Status & History Action Bar */
+  .studio-bottombar {
+    height: 30px; background: var(--bg-header); border-top: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: space-between; padding: 0 14px;
+    font-size: 0.74rem; color: #94a3b8; flex-shrink: 0; z-index: 100;
   }
-  #editorCanvas { cursor: crosshair; display: block; image-rendering: auto; }
-
-  /* Right Panel: Inspector */
-  .sidebar-right {
-    width: 290px; min-width: 180px; max-width: 600px; background: var(--bg-panel);
-    display: flex; flex-direction: column; overflow-y: auto; padding: 10px; gap: 8px;
+  .bottom-left { display: flex; align-items: center; gap: 12px; }
+  .bottom-scale-text { font-family: monospace; color: #cbd5e1; }
+  .bottom-center {
+    flex: 1; padding: 0 20px; text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    font-family: ui-monospace, SFMono-Regular, monospace; font-size: 0.72rem; color: #8bb2eb;
   }
-  .panel-section { background: var(--bg-card); border: 1px solid var(--border); border-radius: 6px; padding: 8px; display: flex; flex-direction: column; gap: 6px; }
-  .section-title { font-size: 0.78rem; font-weight: 700; color: #ddd; display: flex; align-items: center; justify-content: space-between; }
-  
-  .class-palette { display: flex; flex-direction: column; gap: 3px; max-height: 200px; overflow-y: auto; padding-right: 2px; }
-  .class-row {
-    display: flex; align-items: center; justify-content: space-between; padding: 4px 6px; background: #1a1a1a;
-    border-radius: 3px; border: 1px solid var(--border); font-size: 0.74rem;
+  .bottom-right { display: flex; align-items: center; gap: 8px; }
+  .btn-complete {
+    background: var(--accent-cyan); color: #0b1715; font-weight: 800; font-size: 0.74rem;
+    padding: 4px 14px; border-radius: 4px; border: none; cursor: pointer; transition: all 0.12s;
+    display: flex; align-items: center; gap: 6px; box-shadow: 0 2px 8px rgba(0, 191, 165, 0.3);
   }
-  .class-badge-pill { display: flex; align-items: center; gap: 6px; font-weight: 600; }
-  .color-dot { width: 8px; height: 8px; border-radius: 2px; }
-
-  .sel-poly-details { display: flex; flex-direction: column; gap: 5px; }
-  .class-picker { width: 100%; background: var(--bg-input); border: 1px solid var(--border); color: #fff; padding: 4px; border-radius: 3px; font-size: 0.76rem; font-weight: 600; outline: none; }
-
-  .poly-layers { display: flex; flex-direction: column; gap: 2px; max-height: 180px; overflow-y: auto; }
-  .layer-item {
-    padding: 4px 6px; background: #1a1a1a; border: 1px solid transparent; border-radius: 3px;
-    display: flex; align-items: center; justify-content: space-between; font-size: 0.74rem; cursor: pointer;
+  .btn-complete:hover { background: var(--accent-cyan-hover); box-shadow: 0 2px 12px rgba(0, 191, 165, 0.5); }
+  .btn-save-bottom {
+    background: var(--bg-card); color: #e2e8f0; font-size: 0.74rem; padding: 3px 10px;
+    border-radius: 4px; border: 1px solid var(--border); cursor: pointer;
   }
-  .layer-item:hover { border-color: #4b5563; }
-  .layer-item.active { border-color: var(--accent); background: #2f3747; }
-  .layer-del-btn { color: #f87171; cursor: pointer; padding: 0 4px; border-radius: 2px; font-weight: bold; }
-  .layer-del-btn:hover { background: rgba(239, 68, 68, 0.2); }
+  .btn-save-bottom:hover { background: var(--bg-hover); color: #fff; }
 
-  /* Cheatsheet */
-  .cheatsheet { font-size: 0.7rem; color: var(--text-muted); line-height: 1.5; background: #191919; padding: 8px; border-radius: 4px; border: 1px solid var(--border); }
-  .cheatsheet kbd { background: #2b2b2b; padding: 1px 4px; border-radius: 2px; font-family: monospace; color: #ddd; }
-
-  /* 4. Draggable Splitter Resizers */
-  .resizer {
-    width: 5px; background: var(--border); cursor: col-resize; transition: background 0.15s; z-index: 10;
-  }
-  .resizer:hover, .resizer.dragging { background: var(--resizer-hover); }
-
-  /* Modal System */
+  /* Preserved Modal & Explorer Styles */
   .modal-backdrop {
-    display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); backdrop-filter: blur(4px);
-    z-index: 500; align-items: center; justify-content: center;
+    position: fixed; inset: 0; background: rgba(0,0,0,0.75); backdrop-filter: blur(4px);
+    display: none; align-items: center; justify-content: center; z-index: 1000;
   }
   .modal-backdrop.open { display: flex; }
   .modal-window {
-    background: #242424; border: 1px solid var(--border-light); border-radius: 6px;
+    background: #242830; border: 1px solid var(--border-light); border-radius: 8px;
     width: 720px; max-width: 95vw; max-height: 88vh; display: flex; flex-direction: column;
     box-shadow: 0 16px 40px rgba(0,0,0,0.8); overflow: hidden;
   }
+  .modal-window.explorer-window {
+    width: 940px; max-width: 96vw; height: 620px; max-height: 90vh;
+  }
   .modal-header {
-    padding: 10px 16px; background: #2c2c2c; border-bottom: 1px solid var(--border);
+    padding: 10px 16px; background: #1c2026; border-bottom: 1px solid var(--border);
     display: flex; align-items: center; justify-content: space-between; font-size: 0.88rem; font-weight: 700; color: #fff;
   }
   .modal-close { background: transparent; border: none; color: var(--text-muted); font-size: 1.2rem; cursor: pointer; }
   .modal-close:hover { color: #fff; }
   .modal-body { padding: 14px 16px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; }
 
-  .modal-tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--border); padding-bottom: 6px; }
-  .tab-btn {
-    background: transparent; border: none; color: var(--text-muted); padding: 5px 10px;
-    font-size: 0.8rem; font-weight: 600; cursor: pointer; border-radius: 3px; transition: all 0.1s;
-  }
-  .tab-btn:hover { background: var(--bg-hover); color: var(--text); }
-  .tab-btn.active { background: rgba(71, 114, 179, 0.2); color: #8bb2eb; border: 1px solid rgba(71, 114, 179, 0.35); }
-
-  .tab-content { display: none; flex-direction: column; gap: 10px; }
-  .tab-content.active { display: flex; }
-
-  .form-group { display: flex; flex-direction: column; gap: 3px; }
-  .form-label { font-size: 0.75rem; font-weight: 600; color: var(--text-muted); }
-  .form-control {
-    background: var(--bg-input); border: 1px solid var(--border); color: #fff; padding: 6px 8px;
-    border-radius: 3px; font-size: 0.8rem; outline: none;
-  }
-  .form-control:focus { border-color: var(--accent); }
-  .form-row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-
-  /* =========================================================================
-     Modern Desktop Folder Explorer UI & Overlays
-     ========================================================================= */
-  .modal-window.explorer-window {
-    width: 920px;
-    max-width: 96vw;
-    height: 600px;
-    max-height: 90vh;
-  }
-  .explorer-layout {
-    display: flex;
-    flex: 1;
-    min-height: 0;
-    overflow: hidden;
-  }
+  .explorer-layout { display: flex; flex: 1; min-height: 0; overflow: hidden; }
   .explorer-sidebar {
-    width: 280px;
-    background: #1c1c1c;
-    border-right: 1px solid var(--border);
-    display: flex;
-    flex-direction: column;
-    padding: 12px;
-    gap: 14px;
-    overflow-y: auto;
+    width: 280px; background: #181b20; border-right: 1px solid var(--border);
+    display: flex; flex-direction: column; padding: 12px; gap: 14px; overflow-y: auto;
   }
-  .explorer-section-title {
-    font-size: 0.72rem;
-    font-weight: 700;
-    color: var(--text-muted);
-    letter-spacing: 0.5px;
-    text-transform: uppercase;
-  }
-  .explorer-nav-list {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-  }
+  .explorer-section-title { font-size: 0.72rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; }
+  .explorer-nav-list { display: flex; flex-direction: column; gap: 4px; }
   .explorer-nav-item {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 6px 10px;
-    background: transparent;
-    border-radius: 4px;
-    font-size: 0.8rem;
-    color: #ccc;
-    cursor: pointer;
-    border: 1px solid transparent;
-    transition: all 0.12s;
+    display: flex; align-items: center; gap: 8px; padding: 6px 10px; border-radius: 4px;
+    font-size: 0.8rem; color: #ccc; cursor: pointer; border: 1px solid transparent; transition: all 0.12s;
   }
-  .explorer-nav-item:hover {
-    background: var(--bg-hover);
-    color: #fff;
-    border-color: #383838;
-  }
-  .explorer-nav-item.active {
-    background: rgba(71, 114, 179, 0.2);
-    border-color: var(--accent);
-    color: #8bb2eb;
-    font-weight: 600;
-  }
-  .recent-folders-list {
-    display: flex;
-    flex-direction: column;
-    gap: 5px;
-    overflow-y: auto;
-    max-height: 340px;
-  }
+  .explorer-nav-item:hover { background: var(--bg-hover); color: #fff; border-color: #383838; }
+  .recent-folders-list { display: flex; flex-direction: column; gap: 5px; overflow-y: auto; max-height: 340px; }
   .recent-card {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-    padding: 7px 10px;
-    background: var(--bg-card);
-    border: 1px solid var(--border);
-    border-radius: 4px;
-    cursor: pointer;
-    transition: all 0.12s;
+    display: flex; flex-direction: column; gap: 2px; padding: 7px 10px; background: var(--bg-card);
+    border: 1px solid var(--border); border-radius: 4px; cursor: pointer; transition: all 0.12s;
   }
-  .recent-card:hover {
-    background: #282828;
-    border-color: #555;
-    transform: translateX(2px);
-  }
-  .recent-card.active {
-    background: #2a3444;
-    border-color: var(--accent);
-  }
-  .recent-card-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-  }
-  .recent-card-title {
-    font-size: 0.82rem;
-    font-weight: 600;
-    color: #eee;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-  .recent-card-path {
-    font-size: 0.68rem;
-    color: var(--text-muted);
-    font-family: monospace;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
+  .recent-card:hover { background: #2f3540; border-color: #555; transform: translateX(2px); }
+  .recent-card.active { background: #26384a; border-color: var(--accent-cyan); }
+  .recent-card-header { display: flex; align-items: center; justify-content: space-between; }
+  .recent-card-title { font-size: 0.82rem; font-weight: 600; color: #eee; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .recent-card-path { font-size: 0.68rem; color: var(--text-muted); font-family: monospace; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
-  /* Right Explorer Main Area */
-  .explorer-main {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    min-width: 0;
-    background: var(--bg-panel);
-  }
-  .explorer-toolbar {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 10px 14px;
-    background: #222;
-    border-bottom: 1px solid var(--border);
-  }
+  .explorer-main { flex: 1; display: flex; flex-direction: column; min-width: 0; background: var(--bg-panel); }
+  .explorer-toolbar { display: flex; align-items: center; gap: 8px; padding: 10px 14px; background: #1c2026; border-bottom: 1px solid var(--border); }
   .breadcrumb-bar {
-    flex: 1;
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    background: #141414;
-    border: 1px solid var(--border);
-    border-radius: 4px;
-    padding: 4px 8px;
-    overflow-x: auto;
-    white-space: nowrap;
-    scrollbar-width: thin;
+    flex: 1; display: flex; align-items: center; gap: 4px; background: #14171c; border: 1px solid var(--border);
+    border-radius: 4px; padding: 4px 8px; overflow-x: auto; white-space: nowrap;
   }
-  .breadcrumb-segment {
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    padding: 2px 6px;
-    border-radius: 3px;
-    font-size: 0.78rem;
-    color: #aaa;
-    cursor: pointer;
-    transition: all 0.1s;
-  }
-  .breadcrumb-segment:hover {
-    background: #333;
-    color: #8bb2eb;
-  }
-  .breadcrumb-separator {
-    color: #555;
-    font-size: 0.7rem;
-    user-select: none;
-  }
-  .breadcrumb-segment.current {
-    color: #fff;
-    font-weight: 600;
-    background: #282828;
-  }
+  .breadcrumb-segment { display: inline-flex; align-items: center; gap: 4px; padding: 2px 6px; border-radius: 3px; font-size: 0.78rem; color: #aaa; cursor: pointer; }
+  .breadcrumb-segment:hover { background: #333; color: var(--accent-cyan); }
+  .breadcrumb-separator { color: #555; font-size: 0.7rem; user-select: none; }
+  .breadcrumb-segment.current { color: #fff; font-weight: 600; background: #282f3a; }
   .explorer-path-direct-input {
-    display: none;
-    flex: 1;
-    background: #141414;
-    border: 1px solid var(--accent);
-    border-radius: 4px;
-    color: #8bb2eb;
-    padding: 4px 8px;
-    font-family: monospace;
-    font-size: 0.8rem;
-    outline: none;
+    display: none; flex: 1; background: #14171c; border: 1px solid var(--accent-cyan); border-radius: 4px;
+    color: var(--accent-cyan); padding: 4px 8px; font-family: monospace; font-size: 0.8rem; outline: none;
   }
 
   .explorer-grid-container {
-    flex: 1;
-    overflow-y: auto;
-    padding: 14px;
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-    gap: 10px;
-    align-content: start;
+    flex: 1; overflow-y: auto; padding: 14px; display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 10px; align-content: start;
   }
   .folder-tile {
-    background: var(--bg-card);
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    padding: 10px 12px;
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-    cursor: pointer;
-    transition: all 0.12s;
-    user-select: none;
-    position: relative;
+    background: var(--bg-card); border: 1px solid var(--border); border-radius: 6px; padding: 10px 12px;
+    display: flex; flex-direction: column; gap: 6px; cursor: pointer; transition: all 0.12s; user-select: none;
   }
-  .folder-tile:hover {
-    background: #2a2a2a;
-    border-color: #555;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-  }
-  .folder-tile.active {
-    background: #2a3446;
-    border-color: var(--accent);
-    box-shadow: 0 0 0 1px var(--accent);
-  }
-  .folder-tile-top {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-  }
-  .folder-tile-icon {
-    font-size: 1.3rem;
-  }
+  .folder-tile:hover { background: #2f3540; border-color: #555; box-shadow: 0 4px 12px rgba(0,0,0,0.3); }
+  .folder-tile.active { background: #24384a; border-color: var(--accent-cyan); box-shadow: 0 0 0 1px var(--accent-cyan); }
+  .folder-tile-top { display: flex; align-items: center; gap: 8px; }
+  .folder-tile-icon { font-size: 1.3rem; }
   .folder-tile-name {
-    font-size: 0.82rem;
-    font-weight: 600;
-    color: #fff;
-    word-break: break-all;
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
+    font-size: 0.82rem; font-weight: 600; color: #fff; word-break: break-all; display: -webkit-box;
+    -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
   }
-  .folder-tile-badges {
-    display: flex;
-    gap: 4px;
-    flex-wrap: wrap;
-    margin-top: 2px;
-  }
-  .tile-badge {
-    font-size: 0.65rem;
-    font-weight: 600;
-    padding: 1px 5px;
-    border-radius: 3px;
-  }
-  .tile-badge-yolo {
-    background: rgba(34, 197, 94, 0.15);
-    color: #4ade80;
-    border: 1px solid rgba(34, 197, 94, 0.3);
-  }
-  .tile-badge-imgs {
-    background: rgba(71, 114, 179, 0.15);
-    color: #8bb2eb;
-    border: 1px solid rgba(71, 114, 179, 0.3);
-  }
+  .folder-tile-badges { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 2px; }
+  .tile-badge { font-size: 0.65rem; font-weight: 600; padding: 1px 5px; border-radius: 3px; }
+  .tile-badge-yolo { background: rgba(0, 191, 165, 0.15); color: #00bfa5; border: 1px solid rgba(0, 191, 165, 0.35); }
+  .tile-badge-imgs { background: rgba(59, 130, 246, 0.15); color: #60a5fa; border: 1px solid rgba(59, 130, 246, 0.35); }
 
   .explorer-footer-bar {
-    padding: 12px 16px;
-    background: #1c1c1c;
-    border-top: 1px solid var(--border);
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 16px;
+    padding: 12px 16px; background: #181b20; border-top: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: space-between; gap: 16px;
   }
-  .explorer-footer-info {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-    min-width: 0;
-  }
-  .footer-selected-path {
-    font-size: 0.78rem;
-    font-family: monospace;
-    color: #8bb2eb;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-  .footer-selected-desc {
-    font-size: 0.72rem;
-    color: var(--text-muted);
-  }
-  .explorer-footer-actions {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    flex-shrink: 0;
-  }
+  .explorer-footer-info { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+  .footer-selected-path { font-size: 0.78rem; font-family: monospace; color: var(--accent-cyan); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .footer-selected-desc { font-size: 0.72rem; color: var(--text-muted); }
+  .explorer-footer-actions { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
 
   /* Canvas No-Dir Overlay */
   .no-dir-overlay {
-    position: absolute;
-    inset: 0;
-    background: radial-gradient(circle at center, rgba(30,30,30,0.94) 0%, rgba(18,18,18,0.98) 100%);
-    display: none;
-    align-items: center;
-    justify-content: center;
-    z-index: 50;
-    backdrop-filter: blur(4px);
+    position: absolute; inset: 0; background: radial-gradient(circle at center, rgba(30,34,42,0.95) 0%, rgba(18,20,25,0.98) 100%);
+    display: none; align-items: center; justify-content: center; z-index: 50; backdrop-filter: blur(4px);
   }
   .no-dir-card {
-    background: #222;
-    border: 1px solid #444;
-    border-radius: 10px;
-    padding: 28px 32px;
-    width: 480px;
-    max-width: 90%;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    text-align: center;
-    box-shadow: 0 16px 48px rgba(0,0,0,0.8);
-    gap: 14px;
+    background: #232830; border: 1px solid #3e4652; border-radius: 10px; padding: 28px 32px;
+    width: 480px; max-width: 90%; display: flex; flex-direction: column; align-items: center;
+    text-align: center; box-shadow: 0 16px 48px rgba(0,0,0,0.8); gap: 14px;
   }
   .no-dir-icon { font-size: 2.8rem; }
   .no-dir-title { font-size: 1.15rem; font-weight: 700; color: #fff; }
   .no-dir-desc { font-size: 0.84rem; color: var(--text-muted); line-height: 1.5; }
   .no-dir-actions { display: flex; gap: 10px; margin-top: 6px; width: 100%; justify-content: center; }
-  .no-dir-recents {
-    width: 100%;
-    border-top: 1px solid #333;
-    padding-top: 14px;
-    margin-top: 6px;
-    text-align: left;
-  }
+  .no-dir-recents { width: 100%; border-top: 1px solid #333; padding-top: 14px; margin-top: 6px; text-align: left; }
   .no-dir-recents-list { display: flex; flex-direction: column; gap: 4px; max-height: 140px; overflow-y: auto; }
 
+  /* Tool Buttons & Inputs */
+  .tool-btn {
+    display: inline-flex; align-items: center; gap: 5px; background: var(--bg-card); border: 1px solid var(--border);
+    color: var(--text); padding: 5px 10px; border-radius: 4px; font-size: 0.78rem; font-weight: 500; cursor: pointer;
+    transition: all 0.1s;
+  }
+  .tool-btn:hover { background: var(--bg-hover); border-color: var(--border-light); color: #fff; }
+  .tool-btn-primary { background: var(--accent-cyan); color: #0b1715; font-weight: 700; border: none; }
+  .tool-btn-primary:hover { background: var(--accent-cyan-hover); }
+
+  .modal-tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--border); padding-bottom: 6px; }
+  .tab-btn {
+    background: transparent; border: none; color: var(--text-muted); padding: 5px 10px;
+    font-size: 0.8rem; font-weight: 600; cursor: pointer; border-radius: 4px; transition: all 0.1s;
+  }
+  .tab-btn:hover { background: var(--bg-hover); color: var(--text); }
+  .tab-btn.active { background: rgba(0, 191, 165, 0.15); color: var(--accent-cyan); border: 1px solid rgba(0, 191, 165, 0.35); }
+  .tab-content { display: none; flex-direction: column; gap: 10px; }
+  .tab-content.active { display: flex; }
+
+  .form-group { display: flex; flex-direction: column; gap: 4px; }
+  .form-label { font-size: 0.72rem; color: var(--text-muted); font-weight: 600; }
+  .form-control {
+    background: var(--bg-input); border: 1px solid var(--border); color: #fff; padding: 6px 10px;
+    border-radius: 4px; font-size: 0.8rem; outline: none;
+  }
+  .form-control:focus { border-color: var(--accent-cyan); }
+
   .task-console {
-    background: #0d0d0d; border: 1px solid #222; border-radius: 4px; padding: 6px 10px;
-    font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.74rem; color: #a5b4fc;
+    background: #0d0f12; border: 1px solid #22262c; border-radius: 4px; padding: 6px 10px;
+    font-family: ui-monospace, SFMono-Regular, monospace; font-size: 0.74rem; color: #a5b4fc;
     height: 130px; overflow-y: auto; display: flex; flex-direction: column; gap: 2px;
   }
   .progress-bar-wrap { width: 100%; height: 5px; background: var(--bg-card); border-radius: 2px; overflow: hidden; margin-top: 2px; }
-  .progress-bar-fill { height: 100%; width: 0%; background: linear-gradient(90deg, #4772b3, #8b5cf6); transition: width 0.2s; }
+  .progress-bar-fill { height: 100%; width: 0%; background: linear-gradient(90deg, #00bfa5, #3b82f6); transition: width 0.2s; }
 
   /* Toast notification */
   .toast {
-    position: fixed; bottom: 16px; right: 16px; background: #292929; border: 1px solid var(--border-light); color: #fff;
+    position: fixed; bottom: 42px; right: 16px; background: #262c35; border: 1px solid var(--border-light); color: #fff;
     padding: 8px 14px; border-radius: 4px; font-size: 0.8rem; font-weight: 500; z-index: 1000;
     box-shadow: 0 8px 24px rgba(0,0,0,0.6); opacity: 0; transform: translateY(8px); transition: all 0.15s; pointer-events: none;
   }
   .toast.show { opacity: 1; transform: translateY(0); }
 </style>
 </head>
-<body onclick="closeAllMenus(event)">
-
-<!-- 1. Blender-Style Top Menu Bar -->
-<div class="blender-topbar">
-  <div class="topbar-left">
-    <div class="app-logo" onclick="openFolderModal()" title="작업 폴더 열기 (Dataset Studio)">
-      <span class="app-logo-badge">DS</span>
-      <span>Dataset Studio</span>
-    </div>
-
-    <!-- File Menu -->
-    <div class="menu-group" id="menuGroupFile">
-      <div class="menu-trigger" onclick="toggleMenu('menuGroupFile', event)">File</div>
-      <div class="dropdown-menu">
-        <div class="menu-item" onclick="openFolderModal()">
-          <span>📂 작업 폴더 열기 (Open Folder...)</span>
-          <kbd>Ctrl+O</kbd>
-        </div>
-        <div class="menu-item" onclick="openCreateModal()">
-          <span>✨ 새 데이터셋 만들기 (New Dataset...)</span>
-          <kbd>Ctrl+N</kbd>
-        </div>
-        <div class="menu-item" onclick="openClassModal()">
-          <span>⚙️ 클래스 관리 (data.yaml 편집...)</span>
-        </div>
-        <div class="menu-sep"></div>
-        <div class="menu-item" onclick="saveCurrent()">
-          <span>💾 라벨 저장 (Save)</span>
-          <kbd>S / Ctrl+S</kbd>
-        </div>
-        <div class="menu-item" onclick="rebuildDataset()">
-          <span>📦 .tar.gz 패키징 아카이브</span>
-        </div>
-      </div>
-    </div>
-
-    <!-- Edit Menu -->
-    <div class="menu-group" id="menuGroupEdit">
-      <div class="menu-trigger" onclick="toggleMenu('menuGroupEdit', event)">Edit</div>
-      <div class="dropdown-menu">
-        <div class="menu-item" onclick="setMode('draw')">
-          <span>✏ 새 폴리곤 그리기 모드</span>
-          <kbd>E</kbd>
-        </div>
-        <div class="menu-item" onclick="setMode('select')">
-          <span>↖ 선택 / 이동 모드</span>
-          <kbd>Esc</kbd>
-        </div>
-        <div class="menu-sep"></div>
-        <div class="menu-item" onclick="deleteSelectedPolygon()">
-          <span>🗑 선택 폴리곤 삭제</span>
-          <kbd>Q / Del</kbd>
-        </div>
-        <div class="menu-item" onclick="triggerPruneNoise()">
-          <span>🧹 20px 극소 노이즈 일괄 정제</span>
-        </div>
-      </div>
-    </div>
-
-    <!-- Tools Menu -->
-    <div class="menu-group" id="menuGroupTools">
-      <div class="menu-trigger" onclick="toggleMenu('menuGroupTools', event)">Tools</div>
-      <div class="dropdown-menu">
-        <div class="menu-item" onclick="openCreateTabDirect('ai_auto')">
-          <span>🤖 AI 자동 라벨링 (YOLO-Seg)</span>
-        </div>
-        <div class="menu-item" onclick="openCreateTabDirect('filter_clone')">
-          <span>✂️ 정제 & 복제 서브셋 생성</span>
-        </div>
-        <div class="menu-item" onclick="openCreateTabDirect('empty')">
-          <span>📁 빈 데이터셋 구조 생성</span>
-        </div>
-        <div class="menu-sep"></div>
-        <div class="menu-item" onclick="openClassModal()">
-          <span>⚙️ 클래스 정의 및 data.yaml 관리</span>
-        </div>
-      </div>
-    </div>
-
-    <!-- View Menu -->
-    <div class="menu-group" id="menuGroupView">
-      <div class="menu-trigger" onclick="toggleMenu('menuGroupView', event)">View</div>
-      <div class="dropdown-menu">
-        <div class="menu-item" onclick="resetViewFit()">
-          <span>🔍 화면에 맞춤 (Fit)</span>
-          <kbd>F</kbd>
-        </div>
-        <div class="menu-item" onclick="zoomIn()">
-          <span>➕ 화면 확대 (Zoom In)</span>
-          <kbd>+</kbd>
-        </div>
-        <div class="menu-item" onclick="zoomOut()">
-          <span>➖ 화면 축소 (Zoom Out)</span>
-          <kbd>-</kbd>
-        </div>
-        <div class="menu-sep"></div>
-        <div class="menu-item" onclick="openBenchmark()">
-          <span>📊 벤치마크 갤러리</span>
-        </div>
-      </div>
-    </div>
-
-    <!-- Help Menu -->
-    <div class="menu-group" id="menuGroupHelp">
-      <div class="menu-trigger" onclick="toggleMenu('menuGroupHelp', event)">Help</div>
-      <div class="dropdown-menu">
-        <div class="menu-item" onclick="alert('⌨ 단축키 안내:\n• A / D (or ← / →) : 이전 / 다음 사진\n• S / Ctrl+S : 라벨 저장\n• Q / Del : 선택 폴리곤 삭제\n• E : 폴리곤 그리기 (2회 누르면 클래스 선택)\n• 0~9 : 클래스 번호 즉시 변경\n• Enter : 그리기 완료\n• Space+드래그 : 화면 이동(Pan)\n• 휠 스크롤 : 줌 인/아웃\n• 꼭짓점 우클릭 : 점 삭제\n• Esc : 그리기 취소 / 선택 모드')">
-          <span>⌨️ 단축키 안내 (Cheatsheet)</span>
-        </div>
-        <div class="menu-item" onclick="window.open('/static/app_icon.png', '_blank')">
-          <span>ℹ️ Dataset Studio 정보</span>
-        </div>
-      </div>
-    </div>
-
-    <div class="topbar-divider"></div>
-
-    <!-- Blender Workspace Tabs -->
-    <div class="workspace-tabs">
-      <div class="ws-tab active" onclick="switchWorkspaceTab('layout')">Layout</div>
-      <div class="ws-tab" onclick="openCreateTabDirect('ai_auto')">AI Auto-Label</div>
-      <div class="ws-tab" onclick="openBenchmark()">Benchmark</div>
-      <div class="ws-tab" onclick="triggerPruneNoise()">Noise Prune</div>
-      <div class="ws-tab" onclick="openClassModal()">Classes</div>
-      <div class="ws-tab ws-tab-add" onclick="openCreateModal()" title="새 데이터셋 마법사">+</div>
+<body>
+<header class="studio-header">
+  <div class="header-left">
+    <div class="header-logo-badge" onclick="openFolderModal()" title="작업 디렉토리 열기">DS</div>
+    <div class="header-task-title">
+      <span style="color:#94a3b8;">[Demo Task]</span>
+      <span style="font-weight:700;">TASK :</span>
+      <span id="headerTaskName" class="header-task-pill">선택된 디렉토리 없음</span>
     </div>
   </div>
 
-  <div style="font-size:0.75rem; color:var(--text-muted); font-family:monospace;" id="statusWorkspacePath">
-    Workspace: -
+  <div class="header-right">
+    <button class="header-icon-btn" onclick="openFolderModal()" title="작업 디렉토리 열기 (Open Folder)">📂</button>
+    <button class="header-icon-btn" onclick="openCreateModal()" title="새 데이터셋 생성 마법사">✨</button>
+    <button class="header-icon-btn" onclick="openClassModal()" title="클래스 관리 (data.yaml)">⚙️</button>
+    <button class="header-icon-btn" onclick="triggerPruneNoise()" title="20px 노이즈 일괄 정제">🧹</button>
+    <button class="header-icon-btn" onclick="rebuildDataset()" title=".tar.gz 패키징 아카이브">📦</button>
+    <button class="header-icon-btn" onclick="toggleFullscreen()" title="전체화면 (Fullscreen)">⛶</button>
+    <button class="header-icon-btn header-icon-btn-danger" onclick="showCheatsheet()" title="도움말 / 단축키">❓</button>
   </div>
-</div>
+</header>
 
-<!-- 2. Blender Sub-Header / Viewport Control Bar -->
-<div class="blender-subbar">
-  <div class="subbar-left">
-    <!-- Viewport Grid Icon -->
-    <span class="viewport-icon" title="Polygon Viewport">▤</span>
-
-    <!-- Mode Selector Dropdown (Exact Blender Object Mode Pill) -->
-    <div class="blender-mode-pill-wrap">
-      <div id="blenderModePill" class="blender-mode-pill" onclick="toggleModeDropdown(event)" title="작업 모드 전환 (단축키: Esc / E)">
-        <span id="blenderModeIcon" style="font-size:0.85rem;">↖</span>
-        <span id="blenderModeText" style="font-weight:600;">Object Mode</span>
-        <span style="font-size:0.65rem; color:#888;">▾</span>
-      </div>
-      <div id="blenderModeMenu" class="dropdown-menu">
-        <div class="menu-item" onclick="setMode('select')">
-          <span>↖ Object Mode (선택 및 버텍스 이동)</span>
-          <kbd>Esc</kbd>
-        </div>
-        <div class="menu-item" onclick="setMode('draw')">
-          <span>✏ Edit Mode (새 폴리곤 그리기)</span>
-          <kbd>E</kbd>
-        </div>
-      </div>
-    </div>
-
-    <!-- Viewport Local Menus: View, Select, Add -->
-    <div class="menu-group" id="subMenuView">
-      <div class="menu-trigger" onclick="toggleMenu('subMenuView', event)">View</div>
-      <div class="dropdown-menu">
-        <div class="menu-item" onclick="resetViewFit()"><span>🔍 화면에 맞춤 (Fit)</span><kbd>F</kbd></div>
-        <div class="menu-item" onclick="zoomIn()"><span>➕ 확대 (Zoom In)</span><kbd>+</kbd></div>
-        <div class="menu-item" onclick="zoomOut()"><span>➖ 축소 (Zoom Out)</span><kbd>-</kbd></div>
-      </div>
-    </div>
-
-    <div class="menu-group" id="subMenuSelect">
-      <div class="menu-trigger" onclick="toggleMenu('subMenuSelect', event)">Select</div>
-      <div class="dropdown-menu">
-        <div class="menu-item" onclick="setMode('select')"><span>↖ 객체 선택 모드</span><kbd>Esc</kbd></div>
-        <div class="menu-item" onclick="deleteSelectedPolygon()"><span>🗑 선택 폴리곤 삭제</span><kbd>Q / Del</kbd></div>
-      </div>
-    </div>
-
-    <div class="menu-group" id="subMenuAdd">
-      <div class="menu-trigger" onclick="toggleMenu('subMenuAdd', event)">Add</div>
-      <div class="dropdown-menu">
-        <div class="menu-item" onclick="setMode('draw')"><span>✏ 새 폴리곤 생성</span><kbd>E</kbd></div>
-      </div>
-    </div>
-
-    <div class="divider-v"></div>
-
-    <!-- Dataset Selector -->
-    <div class="select-box-wrap">
-      <span class="select-box-label">Dataset:</span>
-      <select id="datasetSelect" class="custom-select" onchange="switchDataset(this.value)">
-        <option value="">선택된 디렉토리 없음</option>
-      </select>
-    </div>
-  </div>
-
-  <div class="subbar-center">
-    <div id="currentFileBadge" class="file-badge">이미지 로딩 중...</div>
-    <div id="statusBadge" class="status-badge status-saved">● 저장됨</div>
-  </div>
-
-  <div class="subbar-right">
-    <!-- Active Class Selector -->
-    <div class="select-box-wrap" style="padding:2px 6px;">
-      <span class="select-box-label">Class:</span>
-      <select id="drawClassSelect" class="custom-select" style="max-width:140px;" title="그릴 클래스 선택 (단축키: 0~9, E 2회)"></select>
-    </div>
-
-    <div class="divider-v"></div>
-
-    <button class="tool-btn" onclick="prevImage()" title="이전 이미지 (단축키: A 또는 ←)"><span>◀ [A]</span></button>
-    <button class="tool-btn" onclick="nextImage()" title="다음 이미지 (단축키: D 또는 →)"><span>[D] ▶</span></button>
-    
-    <div class="divider-v"></div>
-    
-    <button class="tool-btn" onclick="zoomIn()" title="확대 (+)"><span>+</span></button>
-    <span id="zoomInfo" style="font-size:0.75rem; font-family:monospace; color:var(--text-muted); min-width:38px; text-align:center;">100%</span>
-    <button class="tool-btn" onclick="zoomOut()" title="축소 (-)"><span>-</span></button>
-    <button class="tool-btn" onclick="resetViewFit()" title="화면 크기에 맞춤 (단축키: F)"><span>Fit</span></button>
-  </div>
-</div>
-
-<!-- 3. Main Workspace: Left Sidebar - Resizer - Center Canvas - Resizer - Right Sidebar -->
-<div class="main-workspace">
-  <!-- Left Panel: Images -->
-  <aside id="sidebarLeft" class="sidebar-left">
-    <div class="panel-header">
-      <span id="dsSummaryTitle">선택된 디렉토리 없음</span>
-      <span id="dsSummaryStats" style="color:var(--text-muted); font-size:0.7rem;">0장</span>
-    </div>
-
-    <div class="filter-box">
-      <input type="text" id="searchInput" class="search-input" placeholder="파일명 검색 (Enter)..." onkeydown="if(event.key==='Enter')loadImages()">
-      <div class="filter-controls">
-        <select id="filterClass" class="filter-select" onchange="loadImages()">
-          <option value="">모든 클래스</option>
-        </select>
-        <div class="filter-subgrid">
-          <select id="filterSplit" class="filter-select" onchange="loadImages()">
-            <option value="all">전체 Split</option>
-            <option value="train">Train</option>
-            <option value="val">Val</option>
-          </select>
-          <select id="filterStatus" class="filter-select" onchange="loadImages()">
-            <option value="all">전체 상태</option>
-            <option value="edited">수정됨</option>
-            <option value="unedited">미수정</option>
-          </select>
-        </div>
-      </div>
-    </div>
-
-    <div id="imageList" class="image-list"></div>
+<div class="studio-body">
+  <!-- Left Vertical Toolbar -->
+  <aside class="studio-vtoolbar">
+    <button class="vtool-btn active" id="vtoolSelect" onclick="setMode('select')" title="객체 선택 모드 (Object Mode [Esc])">↖</button>
+    <button class="vtool-btn" id="vtoolDraw" onclick="setMode('draw')" title="새 폴리곤 그리기 (Edit Mode [E])">⬡</button>
+    <button class="vtool-btn" id="vtoolBbox" onclick="setMode('bbox')" title="바운딩 박스 그리기 (BBox [B])">▢</button>
+    <div class="vtool-sep"></div>
+    <button class="vtool-btn" onclick="triggerAiAutoLabel()" title="AI 자동 라벨링 추천 실행 [R]">🤖</button>
+    <button class="vtool-btn" onclick="toggleNoiseHighlight()" id="vtoolNoise" title="20px 극소 노이즈 하이라이트 토글">🧹</button>
+    <button class="vtool-btn" onclick="undoAction()" title="실행 취소 (Undo [Ctrl+Z])">↩️</button>
+    <div class="vtool-sep"></div>
+    <button class="vtool-btn" onclick="resetViewFit()" title="화면 크기에 맞춤 (Fit [F])">🔍</button>
+    <button class="vtool-btn" onclick="zoomIn()" title="확대 (+)">➕</button>
+    <button class="vtool-btn" onclick="zoomOut()" title="축소 (-)">➖</button>
+    <div class="vtool-sep"></div>
+    <button class="vtool-btn" onclick="prevImage()" title="이전 이미지 [A]">◀</button>
+    <button class="vtool-btn" onclick="nextImage()" title="다음 이미지 [D]">▶</button>
   </aside>
 
-  <!-- Left Resizer (Draggable Splitter) -->
-  <div id="resizerLeft" class="resizer"></div>
+  <!-- Center Canvas Viewport with Rulers & Spec Badge -->
+  <main class="studio-viewport">
+    <!-- Top Horizontal Ruler -->
+    <div class="ruler-top-row">
+      <div class="ruler-corner"></div>
+      <canvas id="rulerHorizontal" class="ruler-h-canvas"></canvas>
+    </div>
 
-  <!-- Center Canvas -->
-  <main id="canvasWorkspace" class="canvas-workspace">
-    <canvas id="editorCanvas"></canvas>
+    <!-- Center Canvas + Vertical Ruler -->
+    <div class="canvas-mid-row">
+      <canvas id="rulerVertical" class="ruler-v-canvas"></canvas>
+      <div class="canvas-container" id="canvasWorkspace">
+        <!-- Floating Size Badge (Reference UI cyan box) -->
+        <div id="viewportSizeBadge" class="viewport-size-badge">Size : 0px * 0px</div>
+        <canvas id="editorCanvas"></canvas>
 
-    <!-- Empty State Welcome Overlay -->
-    <div id="noDirOverlay" class="no-dir-overlay">
-      <div class="no-dir-card">
-        <div class="no-dir-icon">📂</div>
-        <div class="no-dir-title">선택된 작업 디렉토리가 없습니다</div>
-        <div class="no-dir-desc">
-          라벨링 및 데이터셋 검수를 시작하려면 작업 디렉토리를 열거나 새 데이터셋을 생성하세요.
-        </div>
-        <div class="no-dir-actions">
-          <button class="tool-btn" style="background:var(--accent); color:#fff; font-weight:600; padding:6px 14px;" onclick="openFolderModal()">
-            <span>📂 작업 디렉토리 열기</span>
-          </button>
-          <button class="tool-btn" style="background:var(--bg-card); color:#ddd; padding:6px 14px;" onclick="openCreateModal()">
-            <span>✨ 새 데이터셋 만들기</span>
-          </button>
-        </div>
-        <div class="no-dir-recents" id="noDirRecentsWrap">
-          <div style="font-size:0.75rem; color:var(--text-muted); font-weight:600; margin-bottom:8px;">🕒 최근 작업 디렉토리 바로가기</div>
-          <div id="noDirRecentsList" class="no-dir-recents-list"></div>
+        <!-- Empty State Welcome Overlay -->
+        <div id="noDirOverlay" class="no-dir-overlay">
+          <div class="no-dir-card">
+            <div class="no-dir-icon">📂</div>
+            <div class="no-dir-title">선택된 작업 디렉토리가 없습니다</div>
+            <div class="no-dir-desc">
+              라벨링 및 데이터셋 검수를 시작하려면 작업 디렉토리를 열거나 새 데이터셋을 생성하세요.
+            </div>
+            <div class="no-dir-actions">
+              <button class="tool-btn tool-btn-primary" onclick="openFolderModal()">
+                <span>📂 작업 디렉토리 열기</span>
+              </button>
+              <button class="tool-btn" onclick="openCreateModal()">
+                <span>✨ 새 데이터셋 만들기</span>
+              </button>
+            </div>
+            <div class="no-dir-recents" id="noDirRecentsWrap">
+              <div style="font-size:0.75rem; color:var(--text-muted); font-weight:600; margin-bottom:8px;">🕒 최근 작업 디렉토리 바로가기</div>
+              <div id="noDirRecentsList" class="no-dir-recents-list"></div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
   </main>
 
-  <!-- Right Resizer (Draggable Splitter) -->
-  <div id="resizerRight" class="resizer"></div>
-
-  <!-- Right Panel: Inspector -->
-  <aside id="sidebarRight" class="sidebar-right">
-    <!-- Selected Polygon Info -->
-    <div class="panel-section">
-      <div class="section-title">
-        <span>선택된 폴리곤</span>
-        <span id="selPolyBadge" style="font-size:0.72rem; color:var(--text-muted);">없음</span>
+  <!-- Right Inspector & Management Panel (IMAGE, OBJECT, OBJECT TAG, CLASS PALETTE) -->
+  <aside class="studio-right-panel">
+    <!-- Section 1: IMAGE (Thumbnail Gallery List) -->
+    <div class="panel-card-section">
+      <div class="panel-card-header">
+        <span>IMAGE</span>
+        <span id="headerImgBadge" class="panel-card-badge">0-0 [0]</span>
       </div>
-      <div id="selPolyDetails" class="sel-poly-details" style="display:none; flex-direction:column; gap:6px;">
-        <div class="form-group">
-          <label class="form-label">클래스 변경</label>
-          <select id="selPolyClassPicker" class="class-picker" onchange="changeSelectedPolyClass(this.value)"></select>
+      <div class="img-search-bar">
+        <input type="text" id="searchInput" class="img-search-input" placeholder="Search image (Enter)..." onkeydown="if(event.key==='Enter')loadImages()">
+        <div class="img-filter-row">
+          <select id="filterSplit" class="img-filter-select" onchange="loadImages()">
+            <option value="all">All Split</option>
+            <option value="train">Train</option>
+            <option value="val">Val</option>
+          </select>
+          <select id="filterStatus" class="img-filter-select" onchange="loadImages()">
+            <option value="all">All Status</option>
+            <option value="edited">Edited</option>
+            <option value="unedited">Unedited</option>
+          </select>
         </div>
-        <div style="display:flex; justify-content:space-between; align-items:center; font-size:0.72rem; color:var(--text-muted);">
-          <span id="selPolyPtsCount">버텍스: 0개</span>
-          <span id="selPolySize" style="font-family:monospace; color:#ddd;">0×0px</span>
+      </div>
+      <div id="imageList" class="image-list-viewport">
+        <!-- Image items with thumbnail rendered dynamically -->
+      </div>
+    </div>
+
+    <!-- Section 2: OBJECT (Polygon & Box Layers Table) -->
+    <div class="panel-card-section">
+      <div class="panel-card-header">
+        <span>OBJECT</span>
+        <span id="polyCountBadge" class="panel-card-badge">0</span>
+      </div>
+      <div class="object-table-wrap" id="polyLayersList">
+        <!-- Object rows rendered dynamically -->
+      </div>
+    </div>
+
+    <!-- Section 3: OBJECT TAG (Selected Object Inspector & Class Dropdown) -->
+    <div class="panel-card-section">
+      <div class="panel-card-header">
+        <span>OBJECT TAG</span>
+        <span id="selPolyBadge" class="panel-card-badge">None</span>
+      </div>
+      <div class="tag-section-body">
+        <div class="tag-field-row">
+          <span class="tag-label">Class</span>
+          <select id="selPolyClassPicker" class="tag-value-select" onchange="changeSelectedPolyClass(this.value)">
+            <!-- Populated dynamically -->
+          </select>
         </div>
-        <div id="selPolyWarning" style="display:none; color:#f87171; background:rgba(239,68,68,0.12); border:1px solid rgba(239,68,68,0.3); padding:4px 8px; border-radius:4px; font-size:0.72rem; font-weight:600; line-height:1.3;">
-          ⚠️ 너무 작음 (20×20px 이하 극소 폴리곤 - 라벨링 권장 크기 미달)
+        <div class="tag-field-row">
+          <span class="tag-label">Points / Size</span>
+          <span id="selPolySize" style="font-family:monospace; color:#e2e8f0; font-size:0.75rem;">-</span>
+        </div>
+        <div id="selPolyWarning" style="display:none; color:#ef4444; background:rgba(239,68,68,0.12); border:1px solid rgba(239,68,68,0.3); padding:4px 8px; border-radius:4px; font-size:0.72rem; font-weight:600; line-height:1.3;">
+          ⚠️ 20×20px 이하 극소 폴리곤 (노이즈 주의)
         </div>
         <div style="display:flex; justify-content:flex-end; margin-top:2px;">
-          <button class="tool-btn" style="color:#f87171; border-color:rgba(239,68,68,0.3); width:100%; justify-content:center;" onclick="deleteSelectedPolygon()">선택 폴리곤 삭제 [Q]</button>
+          <button class="tool-btn" style="color:#ef4444; border-color:rgba(239,68,68,0.3); width:100%; justify-content:center;" onclick="deleteSelectedPolygon()">
+            🗑️ 선택 객체 삭제 [Q]
+          </button>
         </div>
       </div>
     </div>
 
-    <!-- Polygon Layers List -->
-    <div class="panel-section">
-      <div class="section-title">
-        <span>폴리곤 레이어</span>
-        <span id="polyLayersCount" style="font-size:0.72rem; color:var(--text-muted);">0개</span>
+    <!-- Section 4: CLASS PALETTE (Quick Color Shortcuts) -->
+    <div class="panel-card-section" style="border-bottom:none;">
+      <div class="panel-card-header">
+        <span>CLASS PALETTE</span>
+        <span id="clsCountBadge" class="panel-card-badge">0 classes</span>
       </div>
-      <div id="polyLayers" class="poly-layers"></div>
-    </div>
-
-    <!-- Active Dataset Classes -->
-    <div class="panel-section">
-      <div class="section-title">
-        <div style="display:flex; align-items:center; gap:6px;">
-          <span>클래스 목록</span>
-          <span id="clsCountBadge" style="font-size:0.72rem; color:var(--text-muted);">0개</span>
-        </div>
-        <button class="tool-btn" style="padding:2px 7px; font-size:0.68rem;" onclick="openClassModal()" title="클래스 이름/색상 편집 및 data.yaml 저장">⚙️ 관리</button>
+      <div id="classPalette" class="class-palette-grid">
+        <!-- Class chips rendered dynamically -->
       </div>
-      <div id="classPalette" class="class-palette"></div>
-    </div>
-
-    <!-- Cheatsheet -->
-    <div class="cheatsheet">
-      <strong style="color:#ddd; display:block; margin-bottom:4px;">⌨️ 단축키 안내:</strong>
-      • <kbd>A</kbd> / <kbd>D</kbd> or <kbd>←</kbd> / <kbd>→</kbd> : 이전 / 다음 사진<br>
-      • <kbd>S</kbd> or <kbd>Ctrl+S</kbd> : 라벨 저장<br>
-      • <kbd>Q</kbd> (or Del) : 선택 폴리곤 삭제<br>
-      • <kbd>E</kbd> : 새 폴리곤 그리기 (연속 2회: 클래스 선택창)<br>
-      • <kbd>0</kbd>~<kbd>9</kbd> : 그리기 클래스 숫자 단축키 즉시 변경<br>
-      • <kbd>Enter</kbd> : 그리기 완료 (첫 점 연결)<br>
-      • <kbd>Space</kbd> + 드래그 : 화면 이동(Pan)<br>
-      • 마우스 휠 : 마우스 위치 중심 확대/축소<br>
-      • 꼭짓점 우클릭 : 해당 꼭짓점 삭제<br>
-      • <kbd>Esc</kbd> : 그리기 취소 및 선택 모드 복귀
     </div>
   </aside>
 </div>
+
+<!-- Bottom Status & History Action Bar -->
+<footer class="studio-bottombar">
+  <div class="bottom-left">
+    <span class="bottom-scale-text" id="bottomScaleInfo">Image Scale : 100%</span>
+    <span style="color:#475569;">|</span>
+    <span id="bottomImgName" style="font-family:monospace; color:#cbd5e1;">No image loaded</span>
+  </div>
+
+  <div class="bottom-center" id="bottomActionLog">
+    🕒 Ready
+  </div>
+
+  <div class="bottom-right">
+    <button class="btn-save-bottom" onclick="saveCurrent()" title="저장 [S / Ctrl+S]">💾 Save</button>
+    <button class="btn-complete" onclick="completeAndNext()" title="현재 이미지 검수 완료 및 다음 사진 이동 [Enter]">
+      <span>COMPLETE</span>
+      <span>▶</span>
+    </button>
+  </div>
+</footer>
 
 <!-- Folder Browser Modal (Modern Desktop Explorer) -->
 <div id="folderModal" class="modal-backdrop">
@@ -1199,6 +832,7 @@
 </div>
 
 <div id="toast" class="toast"></div>
+
 
 <script>
 // State
@@ -1766,6 +1400,10 @@ async function refreshActiveDataset() {
 
     if (noDirOverlay) noDirOverlay.style.display = 'none';
     if (titleEl) titleEl.textContent = currentDataset.name;
+    const taskPill = document.getElementById('headerTaskName');
+    if (taskPill) taskPill.textContent = currentDataset.name || '선택된 디렉토리 없음';
+    const bImgName = document.getElementById('bottomImgName');
+    if (bImgName && currentDataset.name) bImgName.textContent = currentDataset.name;
     if (statsEl) statsEl.textContent = `${currentDataset.total_images.toLocaleString()}장 / ${Object.keys(classes).length}cls`;
     if (pathEl) pathEl.textContent = currentDataset.path;
 
@@ -1795,18 +1433,23 @@ function renderClassPalette() {
   }
 
   for (const [cid, info] of Object.entries(classes)) {
-    const row = document.createElement('div');
-    row.className = 'class-row';
+    const chip = document.createElement('div');
+    chip.className = 'class-chip';
     const label = info.label_ko || info.name || `클래스 ${cid}`;
-    const name = info.name || `class_${cid}`;
-    row.innerHTML = `
-      <div class="class-badge-pill" onclick="openClassModal()" title="클래스 관리 열기 (클릭하여 편집)" style="cursor:pointer;">
-        <span class="color-dot" style="background:${info.color || '#38BDF8'};"></span>
-        <span style="color:#ddd;">[${cid}] ${label}</span>
-        <span style="font-size:0.68rem; color:var(--text-muted);">(${name})</span>
-      </div>
+    chip.innerHTML = `
+      <span class="class-chip-dot" style="background:${info.color || '#00bfa5'};"></span>
+      <span style="color:#ddd; font-weight:600;">[${cid}] ${label}</span>
     `;
-    palEl.appendChild(row);
+    chip.onclick = () => {
+      document.querySelectorAll('.class-chip').forEach(c => c.classList.remove('active'));
+      chip.classList.add('active');
+      const selPicker = document.getElementById('selPolyClassPicker');
+      if (selPicker) selPicker.value = cid;
+      if (selectedPolyIndex >= 0) changeSelectedPolyClass(cid);
+      showToast(`선택 클래스: [${cid}] ${label}`);
+      logAction(`Selected class [${cid}] ${label}`);
+    };
+    palEl.appendChild(chip);
   }
 }
 
@@ -1872,7 +1515,15 @@ async function loadImages() {
 
 function renderImageList() {
   const listEl = document.getElementById('imageList');
+  if (!listEl) return;
   listEl.innerHTML = '';
+
+  const imgBadge = document.getElementById('headerImgBadge');
+  if (imgBadge) {
+    const currNum = images.length > 0 ? (currentImgIndex + 1) : 0;
+    imgBadge.textContent = `${currNum}-${images.length} [${images.length}]`;
+  }
+
   if (images.length === 0) {
     listEl.innerHTML = '<div style="padding:15px; text-align:center; color:var(--text-muted); font-size:0.75rem;">검색 결과가 없습니다.</div>';
     return;
@@ -1880,23 +1531,24 @@ function renderImageList() {
 
   images.forEach((item, idx) => {
     const el = document.createElement('div');
-    el.className = `image-item ${idx === currentImgIndex ? 'active' : ''}`;
+    el.className = `img-list-item ${idx === currentImgIndex ? 'active' : ''}`;
     el.id = `img-item-${idx}`;
     el.onclick = () => selectImage(idx);
 
-    const pillsHtml = item.classes.map(cid => {
-      const c = classes[cid];
-      return `<span class="pill" style="background:${c ? c.color : '#ccc'}">${c ? c.label_ko : cid}</span>`;
-    }).join('');
-
+    const subpath = item.split === '.' ? item.filename : `${item.split}/${item.filename}`;
+    const thumbUrl = `/api/image/${encodeURIComponent(subpath)}`;
     const splitLabel = item.split === '.' ? 'ROOT' : item.split.toUpperCase();
 
     el.innerHTML = `
-      <div class="item-title" title="${item.filename}">${item.filename}</div>
-      <div class="pills">${pillsHtml}</div>
-      <div class="item-meta">
-        <span>${splitLabel} • ${item.poly_count}개</span>
-        ${item.is_edited ? '<span class="edit-tag">✓ 수정됨</span>' : ''}
+      <div class="img-thumb-box">
+        <img src="${thumbUrl}" alt="thumb" loading="lazy" onerror="this.parentElement.innerHTML='🖼️'">
+      </div>
+      <div class="img-item-meta">
+        <div class="img-item-name" title="${item.filename}">${item.filename}</div>
+        <div class="img-item-sub">
+          <span>${splitLabel} • ${item.poly_count}obj</span>
+          <span class="img-item-status-icon">${item.is_edited ? '✅' : '🔒'}</span>
+        </div>
       </div>
     `;
     listEl.appendChild(el);
@@ -1924,7 +1576,7 @@ async function selectImage(idx) {
   const item = images[idx];
   if (!item) return;
 
-  document.querySelectorAll('.image-item').forEach(el => el.classList.remove('active'));
+  document.querySelectorAll('.img-list-item, .image-item').forEach(el => el.classList.remove('active'));
   const activeEl = document.getElementById(`img-item-${idx}`);
   if (activeEl) {
     activeEl.classList.add('active');
@@ -1932,7 +1584,11 @@ async function selectImage(idx) {
   }
 
   const splitPath = item.split === '.' ? item.filename : `${item.split}/${item.filename}`;
-  document.getElementById('currentFileBadge').textContent = `[${idx + 1}/${images.length}] ${splitPath}`;
+  const currBadge = document.getElementById('currentFileBadge');
+  if (currBadge) currBadge.textContent = `[${idx + 1}/${images.length}] ${splitPath}`;
+  const bImg = document.getElementById('bottomImgName');
+  if (bImg) bImg.textContent = splitPath;
+  logAction(`Loaded [${item.filename}] (${idx + 1}/${images.length})`);
   setUnsaved(false);
   selectedPolyIndex = -1;
   drawingPoints = [];
@@ -2027,8 +1683,160 @@ function normToScreen(nx, ny) {
 // =========================================================================
 // Rendering Engine
 // =========================================================================
+
+// =========================================================================
+// Real-time Rulers & Dimension Badge Engine (Reference UI)
+// =========================================================================
+function drawRulers() {
+  const rulerH = document.getElementById('rulerHorizontal');
+  const rulerV = document.getElementById('rulerVertical');
+  if (!rulerH || !rulerV || !canvas) return;
+
+  const rect = canvas.getBoundingClientRect();
+  const w = rect.width;
+  const h = rect.height;
+
+  if (rulerH.width !== w) rulerH.width = w;
+  if (rulerH.height !== 20) rulerH.height = 20;
+  if (rulerV.width !== 20) rulerV.width = 20;
+  if (rulerV.height !== h) rulerV.height = h;
+
+  const ctxH = rulerH.getContext('2d');
+  const ctxV = rulerV.getContext('2d');
+
+  ctxH.fillStyle = '#1c2024';
+  ctxH.fillRect(0, 0, w, 20);
+  ctxV.fillStyle = '#1c2024';
+  ctxV.fillRect(0, 0, 20, h);
+
+  if (!currentImageBitmap) return;
+
+  const originX = view.x;
+  const originY = view.y;
+  const scale = view.scale;
+
+  ctxH.strokeStyle = '#3b424a';
+  ctxH.fillStyle = '#718096';
+  ctxH.font = '9px ui-monospace, monospace';
+
+  ctxV.strokeStyle = '#3b424a';
+  ctxV.fillStyle = '#718096';
+  ctxV.font = '9px ui-monospace, monospace';
+
+  let step = 100;
+  if (scale < 0.25) step = 500;
+  else if (scale < 0.6) step = 200;
+  else if (scale > 2.0) step = 50;
+  else if (scale > 4.5) step = 20;
+
+  const maxImgW = currentImageBitmap.width;
+  for (let px = 0; px <= maxImgW; px += step) {
+    const sx = originX + px * scale;
+    if (sx < 0 || sx > w) continue;
+    ctxH.beginPath();
+    ctxH.moveTo(sx, 12);
+    ctxH.lineTo(sx, 20);
+    ctxH.stroke();
+    ctxH.fillText(px.toString(), sx + 2, 10);
+  }
+
+  const maxImgH = currentImageBitmap.height;
+  for (let py = 0; py <= maxImgH; py += step) {
+    const sy = originY + py * scale;
+    if (sy < 0 || sy > h) continue;
+    ctxV.beginPath();
+    ctxV.moveTo(12, sy);
+    ctxV.lineTo(20, sy);
+    ctxV.stroke();
+    ctxV.save();
+    ctxV.translate(10, sy - 2);
+    ctxV.rotate(-Math.PI / 2);
+    ctxV.fillText(py.toString(), 0, 0);
+    ctxV.restore();
+  }
+}
+
+function updateSizeBadge() {
+  const badge = document.getElementById('viewportSizeBadge');
+  if (!badge) return;
+
+  if (selectedPolyIndex >= 0 && currentAnnotation && currentAnnotation.polygons && currentAnnotation.polygons[selectedPolyIndex] && currentImageBitmap) {
+    const poly = currentAnnotation.polygons[selectedPolyIndex];
+    const b = getPolygonPixelBounds(poly, currentImageBitmap.width, currentImageBitmap.height);
+    const bw = Math.round(b.width);
+    const bh = Math.round(b.height);
+
+    if (b.isSmall) {
+      badge.className = 'viewport-size-badge warning';
+      badge.textContent = `Size : ${bw}px * ${bh}px (⚠️ 20px↓)`;
+    } else {
+      badge.className = 'viewport-size-badge';
+      badge.textContent = `Size : ${bw}px * ${bh}px`;
+    }
+  } else if (currentImageBitmap) {
+    badge.className = 'viewport-size-badge';
+    badge.textContent = `Size : ${currentImageBitmap.width}px * ${currentImageBitmap.height}px`;
+  } else {
+    badge.className = 'viewport-size-badge';
+    badge.textContent = 'Size : 0px * 0px';
+  }
+}
+
+function logAction(msg) {
+  const logEl = document.getElementById('bottomActionLog');
+  if (!logEl) return;
+  const now = new Date();
+  const timeStr = now.toTimeString().split(' ')[0];
+  logEl.textContent = `🕒 (${timeStr}) ${msg}`;
+}
+
+function toggleFullscreen() {
+  if (!document.fullscreenElement) {
+    document.documentElement.requestFullscreen().catch(() => {});
+  } else {
+    document.exitFullscreen().catch(() => {});
+  }
+}
+
+function showCheatsheet() {
+  alert("⌨️ [Dataset Studio 2D Tool 단축키 가이드]\n\n" +
+        "• A / D (or ← / →) : 이전 / 다음 이미지\n" +
+        "• Enter : 현재 이미지 검수 완료(COMPLETE) 및 다음 사진 이동\n" +
+        "• S / Ctrl+S : 라벨 저장 (Save)\n" +
+        "• Esc : 객체 선택 모드 (Object Mode)\n" +
+        "• E : 폴리곤 그리기 모드 (Edit Mode)\n" +
+        "• B : 바운딩 박스 그리기 모드 (BBox Mode)\n" +
+        "• R : AI 모델 자동 라벨링 추천 실행\n" +
+        "• 0~9 : 클래스 번호 빠른 지정\n" +
+        "• Q / Del : 선택 객체 삭제\n" +
+        "• F : 화면 크기에 맞춤 (Fit)\n" +
+        "• Space + 마우스 드래그 : 화면 이동 (Pan)\n" +
+        "• 마우스 휠 : 확대 / 축소 (Zoom)");
+}
+
+async function completeAndNext() {
+  if (currentImgIndex >= 0 && currentImgIndex < images.length) {
+    const item = images[currentImgIndex];
+    try {
+      await saveCurrent(true);
+      const sub = item.split === '.' ? item.stem : `${item.split}/${item.stem}`;
+      await fetch(`/api/mark_reviewed/${sub}`, { method: 'POST' });
+      item.is_edited = true;
+      logAction(`Image [${item.filename}] marked as COMPLETE`);
+      showToast(`검수 완료: ${item.filename}`);
+      renderImageList();
+    } catch (err) {}
+  }
+  nextImage();
+}
+
 function draw() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
+  drawRulers();
+  updateSizeBadge();
+
+  const scaleEl = document.getElementById('bottomScaleInfo');
+  if (scaleEl) scaleEl.textContent = `Image Scale : ${Math.round(view.scale * 100)}%`;
 
   if (!currentImageBitmap) return;
 
@@ -2364,8 +2172,12 @@ function setupEventListeners() {
         updateUI();
         showToast(`그리기 클래스: [${cid}] ${classes[cid].label_ko}`);
       }
-    } else if (e.key === 'Enter' && mode === 'draw') {
-      finishDrawingPolygon();
+    } else if (e.key === 'Enter') {
+      if (mode === 'draw' && drawingPoints && drawingPoints.length >= 3) {
+        finishDrawingPolygon();
+      } else {
+        completeAndNext();
+      }
     } else if (e.key === 'Escape') {
       if (mode === 'draw') {
         drawingPoints = [];
