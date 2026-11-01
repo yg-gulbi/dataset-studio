@@ -416,7 +416,6 @@
     <button class="header-icon-btn" onclick="openFolderModal()" title="작업 디렉토리 열기 (Open Folder)">📂</button>
     <button class="header-icon-btn" onclick="openCreateModal()" title="새 데이터셋 생성 마법사">✨</button>
     <button class="header-icon-btn" onclick="openClassModal()" title="클래스 관리 (data.yaml)">⚙️</button>
-    <button class="header-icon-btn" onclick="triggerPruneNoise()" title="20px 노이즈 일괄 정제">🧹</button>
     <button class="header-icon-btn" onclick="rebuildDataset()" title=".tar.gz 패키징 아카이브">📦</button>
     <button class="header-icon-btn" onclick="toggleFullscreen()" title="전체화면 (Fullscreen)">⛶</button>
     <button class="header-icon-btn header-icon-btn-danger" onclick="showCheatsheet()" title="도움말 / 단축키">❓</button>
@@ -431,7 +430,6 @@
     <button class="vtool-btn" id="vtoolBbox" onclick="setMode('bbox')" title="바운딩 박스 그리기 (BBox [B])">▢</button>
     <div class="vtool-sep"></div>
     <button class="vtool-btn" onclick="triggerAiAutoLabel()" title="AI 자동 라벨링 추천 실행 [R]">🤖</button>
-    <button class="vtool-btn" onclick="toggleNoiseHighlight()" id="vtoolNoise" title="20px 극소 노이즈 하이라이트 토글">🧹</button>
     <button class="vtool-btn" onclick="undoAction()" title="실행 취소 (Undo [Ctrl+Z])">↩️</button>
     <div class="vtool-sep"></div>
     <button class="vtool-btn" onclick="resetViewFit()" title="화면 크기에 맞춤 (Fit [F])">🔍</button>
@@ -719,24 +717,19 @@
         </button>
       </div>
 
-      <!-- Tab 2: Filter & Noise Prune Clone -->
+      <!-- Tab 2: Clone Dataset -->
       <div id="tab_filter_clone" class="tab-content">
         <div class="form-group">
           <label class="form-label">소스 데이터셋</label>
           <select id="cloneSourceDataset" class="form-control"></select>
         </div>
-        <div class="form-group">
-          <label class="form-label" style="display:flex; align-items:center; gap:6px;">
-            <input type="checkbox" id="clonePrune20px" checked>
-            <span>면적 20px 미만 극소 노이즈 폴리곤 자동 제거</span>
-          </label>
-        </div>
+        <input type="checkbox" id="clonePrune20px" style="display:none;">
         <div class="form-group">
           <label class="form-label">새 데이터셋 이름</label>
-          <input type="text" id="cloneDatasetName" class="form-control" placeholder="예: dataset_pruned_clean">
+          <input type="text" id="cloneDatasetName" class="form-control" placeholder="예: dataset_copy_v1">
         </div>
         <button class="tool-btn" style="background:var(--accent); color:#fff; justify-content:center; padding:8px;" onclick="startFilterClone()">
-          <span>📋 정제 복제 시작</span>
+          <span>📋 데이터셋 복제 생성 시작</span>
         </button>
       </div>
 
@@ -2101,6 +2094,16 @@ function setupEventListeners() {
   window.addEventListener('mouseup', () => {
     if (view.isPanning) view.isPanning = false;
     if (isDraggingVertex) {
+      if (selectedPolyIndex >= 0 && currentAnnotation && currentAnnotation.polygons[selectedPolyIndex]) {
+        const poly = currentAnnotation.polygons[selectedPolyIndex];
+        const imgW = currentImageBitmap ? currentImageBitmap.width : 640;
+        const imgH = currentImageBitmap ? currentImageBitmap.height : 640;
+        const bounds = getPolygonPixelBounds(poly, imgW, imgH);
+        if (bounds.isSmall) {
+          showToast(`⚠️ 주의: 폴리곤 크기가 너무 작습니다 (${bounds.width}×${bounds.height}px: 20×20px 이하)`);
+          logAction(`Warning: Object #${selectedPolyIndex + 1} size is ${bounds.width}x${bounds.height}px (<=20px)`);
+        }
+      }
       isDraggingVertex = false;
       selectedVertexIndex = -1;
     }
@@ -2271,10 +2274,11 @@ function pointInPolygon(pt, vs) {
 // =========================================================================
 // Polygon Mutations & Drawing Finish
 // =========================================================================
-function getPolygonPixelBounds(points, imgWidth, imgHeight) {
-  if (!points || points.length === 0) return { width: 0, height: 0, area: 0 };
-  const w = imgWidth || (currentAnnotation ? currentAnnotation.width : 640);
-  const h = imgHeight || (currentAnnotation ? currentAnnotation.height : 640);
+function getPolygonPixelBounds(polyOrPts, imgWidth, imgHeight) {
+  const points = Array.isArray(polyOrPts) ? polyOrPts : (polyOrPts && polyOrPts.points ? polyOrPts.points : []);
+  if (!points || points.length === 0) return { width: 0, height: 0, area: 0, isSmall: false };
+  const w = imgWidth || (currentImageBitmap ? currentImageBitmap.width : (currentAnnotation ? currentAnnotation.width : 640));
+  const h = imgHeight || (currentImageBitmap ? currentImageBitmap.height : (currentAnnotation ? currentAnnotation.height : 640));
 
   let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
   let areaSum = 0;
@@ -2293,15 +2297,34 @@ function getPolygonPixelBounds(points, imgWidth, imgHeight) {
     areaSum += (x * ny) - (nx * y);
   }
 
+  const bw = Math.round(Math.max(0, maxX - minX));
+  const bh = Math.round(Math.max(0, maxY - minY));
+
   return {
-    width: Math.round(Math.max(0, maxX - minX)),
-    height: Math.round(Math.max(0, maxY - minY)),
-    area: Math.round(Math.abs(areaSum) / 2)
+    width: bw,
+    height: bh,
+    area: Math.round(Math.abs(areaSum) / 2),
+    isSmall: (bw <= 20 || bh <= 20)
   };
 }
 
 function finishDrawingPolygon() {
   if (drawingPoints.length < 3) return;
+
+  const imgW = currentImageBitmap ? currentImageBitmap.width : (currentAnnotation ? currentAnnotation.width : 640);
+  const imgH = currentImageBitmap ? currentImageBitmap.height : (currentAnnotation ? currentAnnotation.height : 640);
+  const bounds = getPolygonPixelBounds(drawingPoints, imgW, imgH);
+
+  // 20x20px 이하 극소 폴리곤 차단 및 경고 알림
+  if (bounds.width <= 20 || bounds.height <= 20) {
+    alert(`⚠️ 너무 작은 폴리곤입니다. (${bounds.width}×${bounds.height}px)\n최소 20×20px 이상 크기로만 생성할 수 있습니다.`);
+    showToast(`❌ 생성 불가: 너무 작은 폴리곤 (${bounds.width}×${bounds.height}px - 최소 20×20px 필요)`);
+    logAction(`Rejected: Polygon too small (${bounds.width}x${bounds.height}px <= 20px)`);
+    drawingPoints = [];
+    draw();
+    return;
+  }
+
   const cid = parseInt(document.getElementById('drawClassSelect').value) || 0;
   const cinfo = classes[cid] || { name: `class_${cid}`, label_ko: `class_${cid}`, color: '#fff' };
 
@@ -2314,20 +2337,14 @@ function finishDrawingPolygon() {
     points: drawingPoints
   });
 
-  const bounds = getPolygonPixelBounds(drawingPoints, currentAnnotation.width, currentAnnotation.height);
-  const isTooSmall = (bounds.width <= 20 || bounds.height <= 20);
-
   selectedPolyIndex = currentAnnotation.polygons.length - 1;
   drawingPoints = [];
   setUnsaved(true);
   updateUI(false);
   draw();
 
-  if (isTooSmall) {
-    showToast(`⚠️ 추가된 폴리곤이 너무 작습니다 (${bounds.width}×${bounds.height}px: 20×20px 이하)`);
-  } else {
-    showToast(`새 폴리곤 추가: ${cinfo.label_ko} (${bounds.width}×${bounds.height}px)`);
-  }
+  showToast(`새 폴리곤 추가: ${cinfo.label_ko} (${bounds.width}×${bounds.height}px)`);
+  logAction(`Added polygon: #${currentAnnotation.polygons.length} ${cinfo.label_ko} (${bounds.width}x${bounds.height}px)`);
 }
 
 function changeSelectedPolyClass(newCid) {
@@ -2482,21 +2499,8 @@ function deleteLayerPolygon(idx) {
 }
 
 // =========================================================================
-// Noise Pruning & Packaging
+// Packaging & Utilities
 // =========================================================================
-async function triggerPruneNoise() {
-  closeAllMenus();
-  if (!confirm('현재 데이터셋의 면적 20px 미만 극소 노이즈 폴리곤을 일괄 제거하시겠습니까? (원본 라벨 자동 백업됨)')) return;
-
-  showToast('노이즈 정제 중...');
-  const res = await fetch('/api/dataset/prune_noise?min_pixels=20.0', { method: 'POST' });
-  const data = await res.json();
-  if (data.success) {
-    alert(data.message);
-    await refreshActiveDataset();
-  }
-}
-
 async function rebuildDataset() {
   closeAllMenus();
   showToast('데이터셋 .tar.gz 압축 패키징 중...');
