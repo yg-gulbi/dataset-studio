@@ -578,14 +578,20 @@
         <span>선택된 폴리곤</span>
         <span id="selPolyBadge" style="font-size:0.72rem; color:var(--text-muted);">없음</span>
       </div>
-      <div id="selPolyDetails" class="sel-poly-details" style="display:none;">
+      <div id="selPolyDetails" class="sel-poly-details" style="display:none; flex-direction:column; gap:6px;">
         <div class="form-group">
           <label class="form-label">클래스 변경</label>
           <select id="selPolyClassPicker" class="class-picker" onchange="changeSelectedPolyClass(this.value)"></select>
         </div>
-        <div style="display:flex; justify-content:space-between; align-items:center; font-size:0.72rem; color:var(--text-muted); margin-top:2px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; font-size:0.72rem; color:var(--text-muted);">
           <span id="selPolyPtsCount">버텍스: 0개</span>
-          <button class="tool-btn" style="color:#f87171; border-color:rgba(239,68,68,0.3);" onclick="deleteSelectedPolygon()">삭제 [Q]</button>
+          <span id="selPolySize" style="font-family:monospace; color:#ddd;">0×0px</span>
+        </div>
+        <div id="selPolyWarning" style="display:none; color:#f87171; background:rgba(239,68,68,0.12); border:1px solid rgba(239,68,68,0.3); padding:4px 8px; border-radius:4px; font-size:0.72rem; font-weight:600; line-height:1.3;">
+          ⚠️ 너무 작음 (20×20px 이하 극소 폴리곤 - 라벨링 권장 크기 미달)
+        </div>
+        <div style="display:flex; justify-content:flex-end; margin-top:2px;">
+          <button class="tool-btn" style="color:#f87171; border-color:rgba(239,68,68,0.3); width:100%; justify-content:center;" onclick="deleteSelectedPolygon()">선택 폴리곤 삭제 [Q]</button>
         </div>
       </div>
     </div>
@@ -701,8 +707,12 @@
             <select id="aiSourceDataset" class="form-control"></select>
           </div>
           <div class="form-group">
-            <label class="form-label">YOLO 모델 가중치 (.pt)</label>
-            <select id="aiModelWeight" class="form-control"></select>
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <label class="form-label">YOLO 모델 가중치 (.pt)</label>
+              <span id="aiModelBadge" style="font-size:0.68rem; color:#60a5fa; font-weight:700;"></span>
+            </div>
+            <select id="aiModelWeight" class="form-control" onchange="onModelSelectChange()"></select>
+            <div id="aiModelRecommendInfo" style="display:none; font-size:0.72rem; color:#93c5fd; background:rgba(59,130,246,0.12); border:1px solid rgba(59,130,246,0.25); padding:5px 8px; border-radius:4px; margin-top:4px; line-height:1.3;"></div>
           </div>
         </div>
 
@@ -1502,6 +1512,23 @@ function draw() {
         ctx.strokeStyle = '#000000';
         ctx.stroke();
       });
+
+      // Warning overlay for too-small polygons (20x20px or less)
+      if (isSel && currentAnnotation) {
+        const bounds = getPolygonPixelBounds(poly.points, currentAnnotation.width, currentAnnotation.height);
+        if (bounds.width <= 20 || bounds.height <= 20) {
+          const [topSx, topSy] = normToScreen(pts[0][0], pts[0][1]);
+          ctx.save();
+          ctx.font = 'bold 11px sans-serif';
+          const labelText = `⚠️ 20x20 이하 (${bounds.width}×${bounds.height}px)`;
+          const tw = ctx.measureText(labelText).width;
+          ctx.fillStyle = 'rgba(239, 68, 68, 0.9)';
+          ctx.fillRect(topSx - 4, topSy - 22, tw + 8, 18);
+          ctx.fillStyle = '#ffffff';
+          ctx.fillText(labelText, topSx, topSy - 9);
+          ctx.restore();
+        }
+      }
     });
   }
 
@@ -1679,7 +1706,7 @@ function setupEventListeners() {
         const pHit = hitTestPolygon(mx, my);
         selectedPolyIndex = pHit;
         selectedVertexIndex = -1;
-        updateUI();
+        updateUI(pHit >= 0);
         draw();
       } else if (mode === 'draw') {
         const normPt = screenToNorm(mx, my);
@@ -1866,6 +1893,35 @@ function pointInPolygon(pt, vs) {
 // =========================================================================
 // Polygon Mutations & Drawing Finish
 // =========================================================================
+function getPolygonPixelBounds(points, imgWidth, imgHeight) {
+  if (!points || points.length === 0) return { width: 0, height: 0, area: 0 };
+  const w = imgWidth || (currentAnnotation ? currentAnnotation.width : 640);
+  const h = imgHeight || (currentAnnotation ? currentAnnotation.height : 640);
+
+  let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+  let areaSum = 0;
+
+  for (let i = 0; i < points.length; i++) {
+    const x = points[i][0] * w;
+    const y = points[i][1] * h;
+    if (x < minX) minX = x;
+    if (x > maxX) maxX = x;
+    if (y < minY) minY = y;
+    if (y > maxY) maxY = y;
+
+    const next = points[(i + 1) % points.length];
+    const nx = next[0] * w;
+    const ny = next[1] * h;
+    areaSum += (x * ny) - (nx * y);
+  }
+
+  return {
+    width: Math.round(Math.max(0, maxX - minX)),
+    height: Math.round(Math.max(0, maxY - minY)),
+    area: Math.round(Math.abs(areaSum) / 2)
+  };
+}
+
 function finishDrawingPolygon() {
   if (drawingPoints.length < 3) return;
   const cid = parseInt(document.getElementById('drawClassSelect').value) || 0;
@@ -1880,12 +1936,20 @@ function finishDrawingPolygon() {
     points: drawingPoints
   });
 
+  const bounds = getPolygonPixelBounds(drawingPoints, currentAnnotation.width, currentAnnotation.height);
+  const isTooSmall = (bounds.width <= 20 || bounds.height <= 20);
+
   selectedPolyIndex = currentAnnotation.polygons.length - 1;
   drawingPoints = [];
   setUnsaved(true);
-  updateUI();
+  updateUI(false);
   draw();
-  showToast(`새 폴리곤 추가: ${cinfo.label_ko}`);
+
+  if (isTooSmall) {
+    showToast(`⚠️ 추가된 폴리곤이 너무 작습니다 (${bounds.width}×${bounds.height}px: 20×20px 이하)`);
+  } else {
+    showToast(`새 폴리곤 추가: ${cinfo.label_ko} (${bounds.width}×${bounds.height}px)`);
+  }
 }
 
 function changeSelectedPolyClass(newCid) {
@@ -1963,19 +2027,39 @@ async function saveCurrent(isAuto = false) {
   } catch (err) {}
 }
 
-function updateUI() {
+function updateUI(notifyIfSmall = false) {
   const selCard = document.getElementById('selPolyDetails');
   const selBadge = document.getElementById('selPolyBadge');
+  const selSize = document.getElementById('selPolySize');
+  const selWarn = document.getElementById('selPolyWarning');
 
   if (selectedPolyIndex >= 0 && currentAnnotation && currentAnnotation.polygons[selectedPolyIndex]) {
     const poly = currentAnnotation.polygons[selectedPolyIndex];
     selCard.style.display = 'flex';
-    selBadge.textContent = `#${selectedPolyIndex + 1} (${poly.label_ko || poly.class_id})`;
     document.getElementById('selPolyClassPicker').value = poly.class_id;
     document.getElementById('selPolyPtsCount').textContent = `버텍스: ${poly.points.length}개`;
+
+    const bounds = getPolygonPixelBounds(poly.points, currentAnnotation.width, currentAnnotation.height);
+    if (selSize) selSize.textContent = `${bounds.width}×${bounds.height}px`;
+
+    const isTooSmall = (bounds.width <= 20 || bounds.height <= 20);
+    if (isTooSmall) {
+      if (selWarn) {
+        selWarn.style.display = 'block';
+        selWarn.innerHTML = `⚠️ 너무 작음 (${bounds.width}×${bounds.height}px: 20×20px 이하 극소 폴리곤)`;
+      }
+      selBadge.textContent = `#${selectedPolyIndex + 1} (${poly.label_ko || poly.class_id}) [⚠️ 20x20 이하]`;
+      if (notifyIfSmall) {
+        showToast(`⚠️ 선택한 폴리곤이 너무 작습니다 (${bounds.width}×${bounds.height}px: 20×20px 이하)`);
+      }
+    } else {
+      if (selWarn) selWarn.style.display = 'none';
+      selBadge.textContent = `#${selectedPolyIndex + 1} (${poly.label_ko || poly.class_id})`;
+    }
   } else {
     selCard.style.display = 'none';
     selBadge.textContent = '없음';
+    if (selWarn) selWarn.style.display = 'none';
   }
 
   const layersEl = document.getElementById('polyLayers');
@@ -1985,19 +2069,22 @@ function updateUI() {
     currentAnnotation.polygons.forEach((poly, idx) => {
       const isSel = (idx === selectedPolyIndex);
       const cinfo = classes[poly.class_id] || { color: poly.color || '#fff' };
+      const bounds = getPolygonPixelBounds(poly.points, currentAnnotation.width, currentAnnotation.height);
+      const isSmall = (bounds.width <= 20 || bounds.height <= 20);
 
       const lItem = document.createElement('div');
       lItem.className = `layer-item ${isSel ? 'active' : ''}`;
       lItem.onclick = () => {
         selectedPolyIndex = idx;
-        updateUI();
+        updateUI(true);
         draw();
       };
       lItem.innerHTML = `
         <div style="display:flex; align-items:center; gap:6px;">
           <span class="color-dot" style="background:${cinfo.color}"></span>
-          <span>#${idx + 1} [${poly.class_id}] ${cinfo.label_ko}</span>
-          <span style="font-size:0.68rem; color:var(--text-muted);">(${poly.points.length}pts)</span>
+          <span>#${idx + 1} [${poly.class_id}] ${cinfo.label_ko || poly.label_ko || poly.class_id}</span>
+          <span style="font-size:0.68rem; color:var(--text-muted);">(${poly.points.length}pts, ${bounds.width}×${bounds.height})</span>
+          ${isSmall ? '<span style="font-size:0.62rem; color:#f87171; background:rgba(239,68,68,0.2); padding:1px 4px; border-radius:2px; font-weight:bold;">20px↓</span>' : ''}
         </div>
         <span class="layer-del-btn" onclick="event.stopPropagation(); deleteLayerPolygon(${idx})">&times;</span>
       `;
@@ -2076,11 +2163,67 @@ async function populateModalDropdowns() {
 
   const wRes = await fetch('/api/available_models');
   const wData = await wRes.json();
+  availableModelsList = wData.models || [];
   const wSel = document.getElementById('aiModelWeight');
   wSel.innerHTML = '';
-  (wData.models || []).forEach(m => {
-    wSel.add(new Option(`${m.filename} (${m.size_mb}MB) - ${m.relative_path}`, m.path));
+
+  let recommendedOptIndex = 0;
+  availableModelsList.forEach((m, idx) => {
+    let optText = `${m.filename} (${m.size_mb}MB)`;
+    if (m.is_recommended) {
+      optText = `[🎯 최고추천 | ${m.match_ratio}% 일치] ${optText}`;
+      recommendedOptIndex = idx;
+    } else if (m.recommend_badge) {
+      optText = `[${m.recommend_badge}] ${optText}`;
+    }
+    if (m.fitness) {
+      optText += ` (mAP ${m.fitness})`;
+    }
+    optText += ` - ${m.relative_path}`;
+
+    const opt = new Option(optText, m.path);
+    if (m.is_recommended) {
+      opt.style.fontWeight = 'bold';
+      opt.style.color = '#60a5fa';
+    }
+    wSel.add(opt);
   });
+
+  if (availableModelsList.length > 0) {
+    wSel.selectedIndex = recommendedOptIndex;
+  }
+  onModelSelectChange();
+}
+
+function onModelSelectChange() {
+  const wSel = document.getElementById('aiModelWeight');
+  const badgeEl = document.getElementById('aiModelBadge');
+  const infoEl = document.getElementById('aiModelRecommendInfo');
+  if (!wSel || !badgeEl || !infoEl) return;
+
+  const selectedPath = wSel.value;
+  const m = availableModelsList.find(x => x.path === selectedPath);
+
+  if (!m) {
+    badgeEl.textContent = '';
+    infoEl.style.display = 'none';
+    return;
+  }
+
+  if (m.is_recommended) {
+    badgeEl.textContent = '🎯 최고 추천 모델';
+    infoEl.style.display = 'block';
+    const matchedNames = (m.matched_classes || []).slice(0, 8).join(', ');
+    infoEl.innerHTML = `<strong>💡 자동 추천 모델:</strong> ${m.recommend_reason || '현재 데이터셋에 최적화되었습니다.'}<br><span style="color:#bfdbfe; font-size:0.68rem;">• 매칭 클래스(${m.matched_count}개): ${matchedNames || '없음'}</span>`;
+  } else if (m.matched_count > 0) {
+    badgeEl.textContent = `⭐ 호환 (${m.match_ratio}%)`;
+    infoEl.style.display = 'block';
+    const matchedNames = (m.matched_classes || []).slice(0, 8).join(', ');
+    infoEl.innerHTML = `<strong>호환 모델:</strong> 현재 클래스 중 ${m.matched_count}개(${m.match_ratio}%) 일치.<br><span style="color:#bfdbfe; font-size:0.68rem;">• 매칭: ${matchedNames}</span>`;
+  } else {
+    badgeEl.textContent = '';
+    infoEl.style.display = 'none';
+  }
 }
 
 function switchCreateTab(tabKey) {

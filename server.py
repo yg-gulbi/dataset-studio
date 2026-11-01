@@ -683,22 +683,176 @@ def discover_all_datasets():
     return candidates
 
 
-def discover_available_weights():
+WEIGHT_METADATA_CACHE = {}
+
+
+def get_weight_metadata(weight_path):
+    """Safely inspect YOLO .pt checkpoint metadata with mtime-based caching."""
+    p = Path(weight_path)
+    if not p.exists():
+        return {"names": [], "nc": 0, "fitness": None, "epoch": None}
+
+    mtime = p.stat().st_mtime
+    cached = WEIGHT_METADATA_CACHE.get(str(p))
+    if cached and cached.get("mtime") == mtime:
+        return cached
+
+    names_list = []
+    fitness = None
+    epoch = None
+    try:
+        import torch
+        ckpt = torch.load(p, map_location="cpu", weights_only=False)
+        if isinstance(ckpt, dict):
+            m = ckpt.get("model") or ckpt.get("ema")
+            names = getattr(m, "names", None) if m else ckpt.get("names")
+            raw_fitness = ckpt.get("best_fitness")
+            epoch = ckpt.get("epoch")
+
+            if raw_fitness is not None:
+                try:
+                    fitness = round(float(raw_fitness), 4)
+                except Exception:
+                    fitness = None
+
+            if isinstance(names, dict):
+                names_list = [str(v).strip() for k, v in sorted(names.items(), key=lambda x: int(x[0]) if str(x[0]).isdigit() else str(x[0]))]
+            elif isinstance(names, list):
+                names_list = [str(x).strip() for x in names]
+    except Exception:
+        pass
+
+    data = {
+        "mtime": mtime,
+        "names": names_list,
+        "nc": len(names_list),
+        "fitness": fitness,
+        "epoch": epoch
+    }
+    WEIGHT_METADATA_CACHE[str(p)] = data
+    return data
+
+
+def discover_available_weights(target_dataset_classes=None):
+    """
+    Scan workspace for available .pt weights, extract model metadata,
+    and rank models using a recommendation score based on class overlap and performance metrics.
+    """
+    target_names = set()
+    if target_dataset_classes:
+        for info in target_dataset_classes.values():
+            if isinstance(info, dict):
+                if info.get("name"):
+                    target_names.add(info["name"].strip().lower())
+                if info.get("label_ko"):
+                    target_names.add(info["label_ko"].strip().lower())
+
     results = []
-    weight_files = sorted(list(WORKSPACE_ROOT.glob("**/*.pt")))
+    seen_paths = set()
+    
+    search_dirs = [STUDIO_DIR, STUDIO_DIR.parent]
+    if state.dataset_path:
+        search_dirs.extend([state.dataset_path, state.dataset_path.parent])
+
+    weight_files = []
+    seen_wf = set()
+    for s_dir in search_dirs:
+        if not s_dir or not s_dir.exists():
+            continue
+        try:
+            for wf in s_dir.glob("**/*.pt"):
+                if ".git" in str(wf) or ".cache" in str(wf):
+                    continue
+                r = wf.resolve()
+                if r not in seen_wf:
+                    seen_wf.add(r)
+                    weight_files.append(wf)
+        except Exception:
+            pass
+
     for wf in weight_files:
         if ".git" in str(wf) or ".cache" in str(wf):
             continue
+        p_resolved = wf.resolve()
+        if p_resolved in seen_paths:
+            continue
+        seen_paths.add(p_resolved)
+
         size_mb = round(wf.stat().st_size / (1024 * 1024), 1)
-        rel_path = str(wf.relative_to(WORKSPACE_ROOT))
+        try:
+            rel_path = str(wf.relative_to(STUDIO_DIR.parent))
+        except ValueError:
+            try:
+                rel_path = str(wf.relative_to(WORKSPACE_ROOT))
+            except ValueError:
+                rel_path = wf.name
+
+        meta = get_weight_metadata(wf)
+        model_classes = meta["names"]
+        fitness = meta["fitness"]
+        epoch = meta["epoch"]
+
+        # Calculate class overlap
+        matched = []
+        if target_names and model_classes:
+            for mc in model_classes:
+                mc_lower = mc.lower()
+                known_ko = KNOWN_CLASSES.get(mc_lower, {}).get("label_ko", "").lower()
+                if mc_lower in target_names or (known_ko and known_ko in target_names):
+                    matched.append(mc)
+
+        match_count = len(matched)
+        target_count = len(target_names) if target_names else 1
+        match_ratio = round((match_count / max(1, target_count)) * 100, 1) if target_names else 0
+
+        score = 0.0
+        if match_count > 0:
+            score += match_ratio * 1.5
+            if fitness is not None:
+                score += min(35.0, fitness * 35.0)
+            if "active" in str(wf).lower() or "best" in wf.name.lower():
+                score += 15.0
+            if "seg" in wf.name.lower():
+                score += 10.0
+        elif not target_names:
+            if "seg" in wf.name.lower():
+                score += 20.0
+            if fitness is not None:
+                score += fitness * 20.0
+
         results.append({
             "path": str(wf),
             "filename": wf.name,
             "relative_path": rel_path,
             "size_mb": size_mb,
             "mtime": time.strftime("%Y-%m-%d %H:%M", time.localtime(wf.stat().st_mtime)),
+            "num_classes": meta["nc"],
+            "classes": model_classes,
+            "fitness": fitness,
+            "epoch": epoch,
+            "matched_classes": matched,
+            "matched_count": match_count,
+            "match_ratio": match_ratio,
+            "score": round(score, 1),
         })
-    results.sort(key=lambda x: -x["size_mb"])
+
+    results.sort(key=lambda x: (-x["score"], -(x["fitness"] or 0), -x["size_mb"]))
+
+    for rank, item in enumerate(results):
+        if rank == 0 and item["score"] > 0 and item["matched_count"] > 0:
+            item["is_recommended"] = True
+            fit_str = f" | mAP {item['fitness']}" if item["fitness"] else ""
+            item["recommend_badge"] = f"🎯 추천 ({item['match_ratio']}% 일치{fit_str})"
+            item["recommend_reason"] = f"현재 데이터셋 클래스 중 {item['matched_count']}개를 지원하며 성능 지표({item['fitness'] or '우수'})가 가장 높습니다."
+        elif item["matched_count"] > 0 and item["match_ratio"] >= 40:
+            item["is_recommended"] = False
+            item["recommend_badge"] = f"⭐ 호환 ({item['match_ratio']}% 일치)"
+            item["recommend_reason"] = f"현재 데이터셋 클래스 {item['matched_count']}개 호환"
+        else:
+            item["is_recommended"] = False
+            item["recommend_badge"] = ""
+            item["recommend_reason"] = ""
+
     return results
 
 
@@ -777,10 +931,18 @@ def select_dataset():
 
 @app.route("/api/available_models")
 def get_available_models():
-    weights = discover_available_weights()
+    weights = discover_available_weights(target_dataset_classes=state.classes)
+    best_model = None
+    for w in weights:
+        if w.get("is_recommended"):
+            best_model = w
+            break
+
     return jsonify({
         "total": len(weights),
         "models": weights,
+        "recommended_model": best_model,
+        "active_dataset_classes_count": len(state.classes)
     })
 
 
