@@ -1806,7 +1806,18 @@ def rebuild_dataset():
 
 
 if __name__ == "__main__":
+    import webbrowser
     port = int(os.environ.get("PORT", 8765))
     host = os.environ.get("HOST", "127.0.0.1")
+
+    # Open default browser automatically in background
+    def _open_browser_when_ready():
+        time.sleep(1.2)
+        try:
+            webbrowser.open(f"http://127.0.0.1:{port}")
+        except Exception:
+            pass
+    threading.Thread(target=_open_browser_when_ready, daemon=True).start()
+
     print(f"🚀 [Universal Dataset Studio & Polygon Lab] Running on http://{host}:{port}")
     app.run(host=host, port=port, debug=False)
