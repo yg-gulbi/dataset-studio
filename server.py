@@ -216,11 +216,8 @@ class DatasetState:
         self.in_memory_history = None
         self.split_dirs = []
 
-        cfg = load_config()
-        initial_path = dataset_path or cfg.get("last_opened") or DEFAULT_DATASET
-        if not Path(initial_path).exists():
-            initial_path = DEFAULT_DATASET
-        self.set_dataset(initial_path)
+        if dataset_path:
+            self.set_dataset(dataset_path)
 
     def set_dataset(self, new_path):
         with self.lock:
@@ -471,17 +468,17 @@ def browse_fs():
     """Browse arbitrary folders on the host machine to select or inspect datasets."""
     req_path = request.args.get("path", "").strip()
     if not req_path:
-        curr = Path.home()
+        curr = WORKSPACE_ROOT if WORKSPACE_ROOT.exists() else Path.home()
     else:
         curr = Path(req_path).resolve()
 
     if not curr.exists() or not curr.is_dir():
-        curr = Path.home()
+        curr = WORKSPACE_ROOT if WORKSPACE_ROOT.exists() else Path.home()
 
     subdirs = []
     try:
         for p in sorted(curr.iterdir(), key=lambda x: (not x.is_dir(), x.name.lower())):
-            if p.name.startswith("."):
+            if p.name.startswith(".") or p.name in ("__pycache__", "node_modules", ".git"):
                 continue
             if p.is_dir():
                 has_imgs = (p / "images").exists() or any(p.glob("*.jpg")) or any(p.glob("*.png"))
@@ -880,7 +877,7 @@ def benchmark():
 def list_datasets():
     datasets = discover_all_datasets()
     return jsonify({
-        "current": str(state.dataset_path),
+        "current": str(state.dataset_path) if state.dataset_path else None,
         "total": len(datasets),
         "datasets": datasets,
     })
@@ -888,6 +885,17 @@ def list_datasets():
 
 @app.route("/api/dataset/current")
 def get_current_dataset_info():
+    if not state.dataset_path or not state.dataset_path.exists():
+        return jsonify({
+            "path": None,
+            "name": "선택된 디렉토리 없음",
+            "classes": {},
+            "train_images": 0,
+            "val_images": 0,
+            "total_images": 0,
+            "is_empty": True
+        })
+
     p = state.dataset_path
     img_dir = p / "images"
 
@@ -1229,6 +1237,8 @@ def get_task_status(tid):
 # =========================================================================
 @app.route("/api/dataset/prune_noise", methods=["POST"])
 def prune_noise():
+    if not state.dataset_path or not state.dataset_path.exists():
+        return jsonify({"error": "선택된 데이터셋 디렉토리가 없습니다."}), 400
     min_pixels = float(request.args.get("min_pixels", 20.0))
     ts = int(time.time())
 
@@ -1308,6 +1318,8 @@ def get_classes():
 
 @app.route("/api/classes/save", methods=["POST"])
 def save_classes():
+    if not state.dataset_path or not state.dataset_path.exists():
+        return jsonify({"error": "선택된 데이터셋 디렉토리가 없습니다."}), 400
     data = request.get_json() or {}
     new_classes = data.get("classes", {})
     if not isinstance(new_classes, dict):
@@ -1362,6 +1374,9 @@ def save_classes():
 
 @app.route("/api/images")
 def list_images():
+    if not state.dataset_path or not state.dataset_path.exists():
+        return jsonify({"total": 0, "items": []})
+
     filter_cid = request.args.get("class_id", type=int)
     filter_dom = request.args.get("domain", "")
     filter_status = request.args.get("status", "all")
@@ -1436,6 +1451,8 @@ def list_images():
 
 @app.route("/api/image/<path:subpath>")
 def get_image(subpath):
+    if not state.dataset_path or not state.dataset_path.exists():
+        return jsonify({"error": "선택된 데이터셋 디렉토리가 없습니다."}), 404
     # Support arbitrary subpath (e.g. train/img.jpg or root/img.png)
     target = state.dataset_path / "images" / subpath
     if not target.exists():
@@ -1447,6 +1464,8 @@ def get_image(subpath):
 
 @app.route("/api/annotation/<path:stem_or_subpath>")
 def get_annotation(stem_or_subpath):
+    if not state.dataset_path or not state.dataset_path.exists():
+        return jsonify({"error": "선택된 데이터셋 디렉토리가 없습니다.", "polygons": []}), 404
     parts = stem_or_subpath.split("/")
     if len(parts) == 2:
         split, stem = parts[0], parts[1]
@@ -1511,6 +1530,8 @@ def get_annotation(stem_or_subpath):
 
 @app.route("/api/save/<path:stem_or_subpath>", methods=["POST"])
 def save_annotation(stem_or_subpath):
+    if not state.dataset_path or not state.dataset_path.exists():
+        return jsonify({"error": "선택된 데이터셋 디렉토리가 없습니다."}), 400
     parts = stem_or_subpath.split("/")
     if len(parts) == 2:
         split, stem = parts[0], parts[1]
@@ -1572,6 +1593,8 @@ def save_annotation(stem_or_subpath):
 
 @app.route("/api/delete_class/<path:stem_or_subpath>", methods=["POST"])
 def delete_class(stem_or_subpath):
+    if not state.dataset_path or not state.dataset_path.exists():
+        return jsonify({"error": "선택된 데이터셋 디렉토리가 없습니다."}), 400
     parts = stem_or_subpath.split("/")
     if len(parts) == 2:
         split, stem = parts[0], parts[1]
@@ -1633,6 +1656,8 @@ def delete_class(stem_or_subpath):
 
 @app.route("/api/mark_reviewed/<path:stem_or_subpath>", methods=["POST"])
 def mark_reviewed(stem_or_subpath):
+    if not state.dataset_path or not state.dataset_path.exists():
+        return jsonify({"error": "선택된 데이터셋 디렉토리가 없습니다."}), 400
     parts = stem_or_subpath.split("/")
     if len(parts) == 2:
         split, stem = parts[0], parts[1]
@@ -1673,6 +1698,8 @@ def mark_reviewed(stem_or_subpath):
 
 @app.route("/api/delete_image/<path:stem_or_subpath>", methods=["POST"])
 def delete_image(stem_or_subpath):
+    if not state.dataset_path or not state.dataset_path.exists():
+        return jsonify({"error": "선택된 데이터셋 디렉토리가 없습니다."}), 400
     parts = stem_or_subpath.split("/")
     if len(parts) == 2:
         split, stem = parts[0], parts[1]
@@ -1734,6 +1761,8 @@ def get_stats():
 
 @app.route("/api/rebuild", methods=["POST"])
 def rebuild_dataset():
+    if not state.dataset_path or not state.dataset_path.exists():
+        return jsonify({"error": "선택된 데이터셋 디렉토리가 없습니다."}), 400
     ds_name = state.dataset_path.name
     archive_out = PACKAGES_DIR / f"{ds_name}.tar.gz"
     parent_dir = state.dataset_path.parent

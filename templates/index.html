@@ -262,32 +262,327 @@
   .form-control:focus { border-color: var(--accent); }
   .form-row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 
-  /* Folder Explorer Elements */
-  .explorer-path-bar { display: flex; gap: 6px; align-items: center; background: var(--bg-input); padding: 5px 8px; border-radius: 4px; border: 1px solid var(--border); }
-  .explorer-path-input { flex: 1; background: transparent; border: none; color: #8bb2eb; font-family: monospace; font-size: 0.8rem; outline: none; }
-  .explorer-nav-btn { background: var(--bg-card); border: 1px solid var(--border); color: #fff; padding: 3px 8px; border-radius: 3px; cursor: pointer; font-size: 0.75rem; }
-  .explorer-nav-btn:hover { background: var(--bg-hover); }
+  /* =========================================================================
+     Modern Desktop Folder Explorer UI & Overlays
+     ========================================================================= */
+  .modal-window.explorer-window {
+    width: 920px;
+    max-width: 96vw;
+    height: 600px;
+    max-height: 90vh;
+  }
+  .explorer-layout {
+    display: flex;
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+  }
+  .explorer-sidebar {
+    width: 280px;
+    background: #1c1c1c;
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    padding: 12px;
+    gap: 14px;
+    overflow-y: auto;
+  }
+  .explorer-section-title {
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: var(--text-muted);
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+  }
+  .explorer-nav-list {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .explorer-nav-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 10px;
+    background: transparent;
+    border-radius: 4px;
+    font-size: 0.8rem;
+    color: #ccc;
+    cursor: pointer;
+    border: 1px solid transparent;
+    transition: all 0.12s;
+  }
+  .explorer-nav-item:hover {
+    background: var(--bg-hover);
+    color: #fff;
+    border-color: #383838;
+  }
+  .explorer-nav-item.active {
+    background: rgba(71, 114, 179, 0.2);
+    border-color: var(--accent);
+    color: #8bb2eb;
+    font-weight: 600;
+  }
+  .recent-folders-list {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    overflow-y: auto;
+    max-height: 340px;
+  }
+  .recent-card {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 7px 10px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.12s;
+  }
+  .recent-card:hover {
+    background: #282828;
+    border-color: #555;
+    transform: translateX(2px);
+  }
+  .recent-card.active {
+    background: #2a3444;
+    border-color: var(--accent);
+  }
+  .recent-card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .recent-card-title {
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: #eee;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .recent-card-path {
+    font-size: 0.68rem;
+    color: var(--text-muted);
+    font-family: monospace;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
 
-  .explorer-container { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; height: 220px; }
-  .explorer-folder-list { background: var(--bg-input); border: 1px solid var(--border); border-radius: 4px; overflow-y: auto; padding: 4px; display: flex; flex-direction: column; gap: 2px; }
-  .explorer-item {
-    display: flex; align-items: center; justify-content: space-between; padding: 5px 8px; border-radius: 3px;
-    font-size: 0.78rem; cursor: pointer; border: 1px solid transparent;
+  /* Right Explorer Main Area */
+  .explorer-main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    background: var(--bg-panel);
   }
-  .explorer-item:hover { background: #222; border-color: #383838; }
-  .explorer-item.active { background: #2f3747; border-color: var(--accent); color: #8bb2eb; font-weight: bold; }
-  .explorer-item-badge { font-size: 0.65rem; padding: 1px 4px; border-radius: 2px; background: rgba(71, 114, 179, 0.2); color: #8bb2eb; }
+  .explorer-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 14px;
+    background: #222;
+    border-bottom: 1px solid var(--border);
+  }
+  .breadcrumb-bar {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    background: #141414;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 4px 8px;
+    overflow-x: auto;
+    white-space: nowrap;
+    scrollbar-width: thin;
+  }
+  .breadcrumb-segment {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-size: 0.78rem;
+    color: #aaa;
+    cursor: pointer;
+    transition: all 0.1s;
+  }
+  .breadcrumb-segment:hover {
+    background: #333;
+    color: #8bb2eb;
+  }
+  .breadcrumb-separator {
+    color: #555;
+    font-size: 0.7rem;
+    user-select: none;
+  }
+  .breadcrumb-segment.current {
+    color: #fff;
+    font-weight: 600;
+    background: #282828;
+  }
+  .explorer-path-direct-input {
+    display: none;
+    flex: 1;
+    background: #141414;
+    border: 1px solid var(--accent);
+    border-radius: 4px;
+    color: #8bb2eb;
+    padding: 4px 8px;
+    font-family: monospace;
+    font-size: 0.8rem;
+    outline: none;
+  }
 
-  .explorer-preview-card {
-    background: var(--bg-input); border: 1px solid var(--border); border-radius: 4px; padding: 10px;
-    display: flex; flex-direction: column; justify-content: space-between;
+  .explorer-grid-container {
+    flex: 1;
+    overflow-y: auto;
+    padding: 14px;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 10px;
+    align-content: start;
   }
-  .recent-folders-wrap { display: flex; flex-direction: column; gap: 3px; }
-  .recent-folder-item {
-    display: flex; align-items: center; justify-content: space-between; padding: 4px 8px; background: var(--bg-card);
-    border-radius: 3px; font-size: 0.75rem; cursor: pointer; border: 1px solid var(--border);
+  .folder-tile {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 10px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    cursor: pointer;
+    transition: all 0.12s;
+    user-select: none;
+    position: relative;
   }
-  .recent-folder-item:hover { background: var(--bg-hover); border-color: #8bb2eb; }
+  .folder-tile:hover {
+    background: #2a2a2a;
+    border-color: #555;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+  }
+  .folder-tile.active {
+    background: #2a3446;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 1px var(--accent);
+  }
+  .folder-tile-top {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .folder-tile-icon {
+    font-size: 1.3rem;
+  }
+  .folder-tile-name {
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: #fff;
+    word-break: break-all;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  .folder-tile-badges {
+    display: flex;
+    gap: 4px;
+    flex-wrap: wrap;
+    margin-top: 2px;
+  }
+  .tile-badge {
+    font-size: 0.65rem;
+    font-weight: 600;
+    padding: 1px 5px;
+    border-radius: 3px;
+  }
+  .tile-badge-yolo {
+    background: rgba(34, 197, 94, 0.15);
+    color: #4ade80;
+    border: 1px solid rgba(34, 197, 94, 0.3);
+  }
+  .tile-badge-imgs {
+    background: rgba(71, 114, 179, 0.15);
+    color: #8bb2eb;
+    border: 1px solid rgba(71, 114, 179, 0.3);
+  }
+
+  .explorer-footer-bar {
+    padding: 12px 16px;
+    background: #1c1c1c;
+    border-top: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+  }
+  .explorer-footer-info {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+  }
+  .footer-selected-path {
+    font-size: 0.78rem;
+    font-family: monospace;
+    color: #8bb2eb;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .footer-selected-desc {
+    font-size: 0.72rem;
+    color: var(--text-muted);
+  }
+  .explorer-footer-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+  }
+
+  /* Canvas No-Dir Overlay */
+  .no-dir-overlay {
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(circle at center, rgba(30,30,30,0.94) 0%, rgba(18,18,18,0.98) 100%);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 50;
+    backdrop-filter: blur(4px);
+  }
+  .no-dir-card {
+    background: #222;
+    border: 1px solid #444;
+    border-radius: 10px;
+    padding: 28px 32px;
+    width: 480px;
+    max-width: 90%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    box-shadow: 0 16px 48px rgba(0,0,0,0.8);
+    gap: 14px;
+  }
+  .no-dir-icon { font-size: 2.8rem; }
+  .no-dir-title { font-size: 1.15rem; font-weight: 700; color: #fff; }
+  .no-dir-desc { font-size: 0.84rem; color: var(--text-muted); line-height: 1.5; }
+  .no-dir-actions { display: flex; gap: 10px; margin-top: 6px; width: 100%; justify-content: center; }
+  .no-dir-recents {
+    width: 100%;
+    border-top: 1px solid #333;
+    padding-top: 14px;
+    margin-top: 6px;
+    text-align: left;
+  }
+  .no-dir-recents-list { display: flex; flex-direction: column; gap: 4px; max-height: 140px; overflow-y: auto; }
 
   .task-console {
     background: #0d0d0d; border: 1px solid #222; border-radius: 4px; padding: 6px 10px;
@@ -495,7 +790,7 @@
     <div class="select-box-wrap">
       <span class="select-box-label">Dataset:</span>
       <select id="datasetSelect" class="custom-select" onchange="switchDataset(this.value)">
-        <option value="">데이터셋 로딩 중...</option>
+        <option value="">선택된 디렉토리 없음</option>
       </select>
     </div>
   </div>
@@ -531,7 +826,7 @@
   <!-- Left Panel: Images -->
   <aside id="sidebarLeft" class="sidebar-left">
     <div class="panel-header">
-      <span id="dsSummaryTitle">dataset</span>
+      <span id="dsSummaryTitle">선택된 디렉토리 없음</span>
       <span id="dsSummaryStats" style="color:var(--text-muted); font-size:0.7rem;">0장</span>
     </div>
 
@@ -565,6 +860,29 @@
   <!-- Center Canvas -->
   <main id="canvasWorkspace" class="canvas-workspace">
     <canvas id="editorCanvas"></canvas>
+
+    <!-- Empty State Welcome Overlay -->
+    <div id="noDirOverlay" class="no-dir-overlay">
+      <div class="no-dir-card">
+        <div class="no-dir-icon">📂</div>
+        <div class="no-dir-title">선택된 작업 디렉토리가 없습니다</div>
+        <div class="no-dir-desc">
+          라벨링 및 데이터셋 검수를 시작하려면 작업 디렉토리를 열거나 새 데이터셋을 생성하세요.
+        </div>
+        <div class="no-dir-actions">
+          <button class="tool-btn" style="background:var(--accent); color:#fff; font-weight:600; padding:6px 14px;" onclick="openFolderModal()">
+            <span>📂 작업 디렉토리 열기</span>
+          </button>
+          <button class="tool-btn" style="background:var(--bg-card); color:#ddd; padding:6px 14px;" onclick="openCreateModal()">
+            <span>✨ 새 데이터셋 만들기</span>
+          </button>
+        </div>
+        <div class="no-dir-recents" id="noDirRecentsWrap">
+          <div style="font-size:0.75rem; color:var(--text-muted); font-weight:600; margin-bottom:8px;">🕒 최근 작업 디렉토리 바로가기</div>
+          <div id="noDirRecentsList" class="no-dir-recents-list"></div>
+        </div>
+      </div>
+    </div>
   </main>
 
   <!-- Right Resizer (Draggable Splitter) -->
@@ -634,52 +952,88 @@
   </aside>
 </div>
 
-<!-- Folder Browser Modal -->
+<!-- Folder Browser Modal (Modern Desktop Explorer) -->
 <div id="folderModal" class="modal-backdrop">
-  <div class="modal-window">
+  <div class="modal-window explorer-window">
     <div class="modal-header">
-      <span>📂 작업 폴더 열기 (범용 데이터셋 선택)</span>
+      <div style="display:flex; align-items:center; gap:8px;">
+        <span style="font-size:1rem;">📂</span>
+        <span>작업 디렉토리를 선택하십시오</span>
+      </div>
       <button class="modal-close" onclick="closeFolderModal()">&times;</button>
     </div>
 
-    <div class="modal-body">
-      <div class="explorer-path-bar">
-        <button class="explorer-nav-btn" onclick="browseUpFolder()" title="상위 폴더로 이동">⬆ 상위</button>
-        <input type="text" id="explorerPathInput" class="explorer-path-input" placeholder="/home/username/..." onkeydown="if(event.key==='Enter')browseFs(this.value)">
-        <button class="explorer-nav-btn" onclick="browseFs(document.getElementById('explorerPathInput').value)">이동</button>
-      </div>
-
-      <div class="explorer-container">
-        <div id="explorerSubdirs" class="explorer-folder-list">
-          <div style="padding:10px; color:var(--text-muted); font-size:0.8rem;">폴더 탐색 중...</div>
-        </div>
-
-        <div class="explorer-preview-card">
-          <div style="display:flex; flex-direction:column; gap:4px;">
-            <div style="font-size:0.82rem; font-weight:700; color:#fff;" id="expPreviewName">폴더를 선택하세요</div>
-            <div style="font-size:0.74rem; color:var(--text-muted); line-height:1.4;" id="expPreviewDetails">
-              경로: -<br>
-              이미지: -<br>
-              라벨: -<br>
-              YOLO 구조: -
+    <div class="explorer-layout">
+      <!-- Left Sidebar: Shortcuts & Recents -->
+      <aside class="explorer-sidebar">
+        <div>
+          <div class="explorer-section-title" style="margin-bottom:6px;">빠른 바로가기</div>
+          <div class="explorer-nav-list">
+            <div class="explorer-nav-item" onclick="browseFs('/home/yg-gulbi/workspace')">
+              <span>💼</span>
+              <span>Workspace</span>
+            </div>
+            <div class="explorer-nav-item" onclick="browseFs('/home/yg-gulbi')">
+              <span>🏠</span>
+              <span>Home</span>
             </div>
           </div>
+        </div>
 
-          <div style="display:flex; flex-direction:column; gap:4px;">
-            <button id="btnOpenSelectedFolder" class="tool-btn" style="background:var(--accent); justify-content:center; color:#fff;" onclick="confirmOpenFolder(false)">
-              <span>📂 이 폴더 데이터셋으로 열기</span>
+        <div style="flex:1; display:flex; flex-direction:column; min-height:0;">
+          <div class="explorer-section-title" style="margin-bottom:6px;">🕒 최근 작업 디렉토리</div>
+          <div id="recentFoldersList" class="recent-folders-list">
+            <div style="font-size:0.75rem; color:var(--text-muted); padding:8px 4px;">최근 목록 로드 중...</div>
+          </div>
+        </div>
+      </aside>
+
+      <!-- Right Main: Breadcrumb Toolbar, Folder Grid, Footer Bar -->
+      <section class="explorer-main">
+        <!-- Toolbar -->
+        <div class="explorer-toolbar">
+          <button class="tool-btn" onclick="browseUpFolder()" title="상위 폴더로 이동" style="background:var(--bg-card); flex-shrink:0;">
+            <span>⬆ 상위</span>
+          </button>
+          
+          <div id="explorerBreadcrumbs" class="breadcrumb-bar" title="클릭하여 상위 경로로 점프">
+            <!-- Breadcrumbs rendered dynamically -->
+          </div>
+
+          <button class="tool-btn" id="btnTogglePathInput" onclick="toggleDirectPathInput()" title="직접 경로 입력 토글" style="background:var(--bg-card); flex-shrink:0;">
+            <span>✏️ 직접 입력</span>
+          </button>
+
+          <input type="text" id="explorerPathInput" class="explorer-path-direct-input" placeholder="/home/yg-gulbi/..." onkeydown="if(event.key==='Enter'){browseFs(this.value); toggleDirectPathInput();}">
+        </div>
+
+        <!-- Subdirectories Folder Grid -->
+        <div id="explorerSubdirs" class="explorer-grid-container">
+          <div style="grid-column:1/-1; padding:30px; text-align:center; color:var(--text-muted); font-size:0.85rem;">
+            폴더를 탐색 중입니다...
+          </div>
+        </div>
+
+        <!-- Explorer Footer Action Bar -->
+        <div class="explorer-footer-bar">
+          <div class="explorer-footer-info">
+            <div id="expFooterPath" class="footer-selected-path">폴더를 선택하세요</div>
+            <div id="expFooterDesc" class="footer-selected-desc">하위 폴더를 더블 클릭하여 이동하거나, 현재 디렉토리를 열 수 있습니다.</div>
+          </div>
+
+          <div class="explorer-footer-actions">
+            <button id="btnInitAndOpenFolder" class="tool-btn" style="display:none; background:#2a3a55; color:#8bb2eb; border:1px solid #4772b3;" onclick="confirmOpenFolder(true)">
+              <span>✨ YOLO 데이터셋으로 변환 & 열기</span>
             </button>
-            <button id="btnInitAndOpenFolder" class="tool-btn" style="display:none; justify-content:center; color:#8bb2eb;" onclick="confirmOpenFolder(true)">
-              <span>✨ 이미지들을 YOLO 데이터셋으로 자동 변환</span>
+            <button id="btnOpenSelectedFolder" class="tool-btn" style="background:var(--accent); color:#fff; font-weight:600; padding:6px 16px;" onclick="confirmOpenFolder(false)">
+              <span>📂 이 디렉토리 선택</span>
+            </button>
+            <button class="tool-btn" style="background:var(--bg-card);" onclick="closeFolderModal()">
+              <span>닫기</span>
             </button>
           </div>
         </div>
-      </div>
-
-      <div style="display:flex; flex-direction:column; gap:4px;">
-        <span style="font-size:0.74rem; font-weight:700; color:var(--text-muted);">🕒 최근 작업한 폴더</span>
-        <div id="recentFoldersList" class="recent-folders-wrap"></div>
-      </div>
+      </section>
     </div>
   </div>
 </div>
@@ -1013,13 +1367,36 @@ function openCreateTabDirect(tabKey) {
 }
 
 // =========================================================================
-// Universal Folder Browser Modal
 // =========================================================================
-function openFolderModal() {
+// Modern Desktop Universal Folder Explorer
+// =========================================================================
+let isPathInputDirect = false;
+
+function toggleDirectPathInput() {
+  const breadcrumbsEl = document.getElementById('explorerBreadcrumbs');
+  const directInputEl = document.getElementById('explorerPathInput');
+  const btnToggle = document.getElementById('btnTogglePathInput');
+
+  isPathInputDirect = !isPathInputDirect;
+  if (isPathInputDirect) {
+    breadcrumbsEl.style.display = 'none';
+    directInputEl.style.display = 'block';
+    directInputEl.focus();
+    directInputEl.select();
+    btnToggle.innerHTML = '<span>🧭 빵부스러기</span>';
+  } else {
+    breadcrumbsEl.style.display = 'flex';
+    directInputEl.style.display = 'none';
+    btnToggle.innerHTML = '<span>✏️ 직접 입력</span>';
+  }
+}
+
+function openFolderModal(initialPath) {
   closeAllMenus();
   document.getElementById('folderModal').classList.add('open');
   loadRecentFolders();
-  browseFs(currentDataset ? currentDataset.path : '');
+  const target = initialPath || (currentDataset && currentDataset.path) || '/home/yg-gulbi/workspace';
+  browseFs(target);
 }
 
 function closeFolderModal() {
@@ -1031,22 +1408,98 @@ async function loadRecentFolders() {
     const res = await fetch('/api/recent_folders');
     const data = await res.json();
     const listEl = document.getElementById('recentFoldersList');
-    listEl.innerHTML = '';
+    const noDirRecentsEl = document.getElementById('noDirRecentsList');
+    
+    if (listEl) listEl.innerHTML = '';
+    if (noDirRecentsEl) noDirRecentsEl.innerHTML = '';
 
-    (data.recent_folders || []).forEach(rf => {
-      const el = document.createElement('div');
-      el.className = 'recent-folder-item';
-      el.innerHTML = `
-        <span style="font-weight:600; color:#ddd;">📁 ${rf.name}</span>
-        <span style="font-size:0.7rem; color:var(--text-muted); font-family:monospace;">${rf.path}</span>
-      `;
-      el.onclick = () => {
-        closeFolderModal();
-        switchDataset(rf.path);
-      };
-      listEl.appendChild(el);
+    const recents = data.recent_folders || [];
+    if (recents.length === 0) {
+      if (listEl) {
+        listEl.innerHTML = '<div style="font-size:0.75rem; color:var(--text-muted); padding:10px 4px; text-align:center;">최근 열어본 디렉토리가 없습니다.</div>';
+      }
+      if (noDirRecentsEl) {
+        noDirRecentsEl.innerHTML = '<div style="font-size:0.75rem; color:var(--text-muted);">최근 작업 목록이 없습니다.</div>';
+      }
+      return;
+    }
+
+    recents.forEach(rf => {
+      // 1. Modal Sidebar Card
+      if (listEl) {
+        const card = document.createElement('div');
+        card.className = `recent-card ${rf.is_current ? 'active' : ''}`;
+        card.innerHTML = `
+          <div class="recent-card-header">
+            <span class="recent-card-title">📁 ${rf.name}</span>
+            ${rf.is_current ? '<span class="tile-badge tile-badge-yolo">현재</span>' : ''}
+          </div>
+          <div class="recent-card-path" title="${rf.path}">${rf.path}</div>
+        `;
+        card.onclick = () => {
+          document.querySelectorAll('.recent-card').forEach(c => c.classList.remove('active'));
+          card.classList.add('active');
+          browseFs(rf.path);
+        };
+        card.ondblclick = () => {
+          closeFolderModal();
+          switchDataset(rf.path);
+        };
+        listEl.appendChild(card);
+      }
+
+      // 2. Canvas Welcome Overlay Card
+      if (noDirRecentsEl) {
+        const item = document.createElement('div');
+        item.style.cssText = 'display:flex; justify-content:space-between; align-items:center; padding:6px 10px; background:#1c1c1c; border:1px solid #333; border-radius:4px; cursor:pointer; font-size:0.78rem; transition:all 0.12s;';
+        item.innerHTML = `
+          <div style="font-weight:600; color:#ddd; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">📁 ${rf.name}</div>
+          <div style="font-size:0.7rem; color:var(--text-muted); font-family:monospace; margin-left:12px;">${rf.path}</div>
+        `;
+        item.onmouseover = () => { item.style.borderColor = '#8bb2eb'; item.style.background = '#252525'; };
+        item.onmouseout = () => { item.style.borderColor = '#333'; item.style.background = '#1c1c1c'; };
+        item.onclick = () => switchDataset(rf.path);
+        noDirRecentsEl.appendChild(item);
+      }
     });
   } catch (err) {}
+}
+
+function renderBreadcrumbs(fullPath) {
+  const container = document.getElementById('explorerBreadcrumbs');
+  if (!container) return;
+  container.innerHTML = '';
+
+  const cleanPath = (fullPath || '').trim();
+  const parts = cleanPath.split('/').filter(Boolean);
+
+  // Root crumb
+  const rootCrumb = document.createElement('span');
+  rootCrumb.className = `breadcrumb-segment ${parts.length === 0 ? 'current' : ''}`;
+  rootCrumb.innerHTML = '📁 /';
+  rootCrumb.onclick = () => browseFs('/');
+  container.appendChild(rootCrumb);
+
+  let accumulated = '';
+  parts.forEach((part, idx) => {
+    accumulated += '/' + part;
+    const isLast = (idx === parts.length - 1);
+
+    const sep = document.createElement('span');
+    sep.className = 'breadcrumb-separator';
+    sep.textContent = '>';
+    container.appendChild(sep);
+
+    const crumb = document.createElement('span');
+    crumb.className = `breadcrumb-segment ${isLast ? 'current' : ''}`;
+    crumb.textContent = part;
+    const targetPath = accumulated;
+    crumb.onclick = () => browseFs(targetPath);
+    container.appendChild(crumb);
+  });
+
+  // Scroll to rightmost
+  container.scrollLeft = container.scrollWidth;
 }
 
 async function browseFs(path) {
@@ -1054,38 +1507,82 @@ async function browseFs(path) {
     const res = await fetch(`/api/browse_fs?path=${encodeURIComponent(path || '')}`);
     currentFsData = await res.json();
 
-    document.getElementById('explorerPathInput').value = currentFsData.current_path;
-    selectedFsPath = currentFsData.current_path;
-    updateFsPreview(currentFsData);
+    const currPath = currentFsData.current_path;
+    selectedFsPath = currPath;
 
-    const listEl = document.getElementById('explorerSubdirs');
-    listEl.innerHTML = '';
+    document.getElementById('explorerPathInput').value = currPath;
+    renderBreadcrumbs(currPath);
+    updateFsFooter(currentFsData);
 
+    const gridEl = document.getElementById('explorerSubdirs');
+    gridEl.innerHTML = '';
+
+    // Up directory item
     if (currentFsData.parent_path) {
-      const upItem = document.createElement('div');
-      upItem.className = 'explorer-item';
-      upItem.innerHTML = '<span>📁 .. (상위 폴더)</span>';
-      upItem.onclick = () => browseFs(currentFsData.parent_path);
-      listEl.appendChild(upItem);
+      const upTile = document.createElement('div');
+      upTile.className = 'folder-tile';
+      upTile.innerHTML = `
+        <div class="folder-tile-top">
+          <span class="folder-tile-icon">⬆️</span>
+          <div class="folder-tile-name">.. (상위 디렉토리)</div>
+        </div>
+        <div class="folder-tile-badges">
+          <span class="tile-badge" style="background:#333; color:#aaa;">상위 이동</span>
+        </div>
+      `;
+      upTile.onclick = () => browseFs(currentFsData.parent_path);
+      gridEl.appendChild(upTile);
+    }
+
+    if (!currentFsData.subdirs || currentFsData.subdirs.length === 0) {
+      const emptyNote = document.createElement('div');
+      emptyNote.style.cssText = 'grid-column: 1/-1; padding: 40px 10px; text-align: center; color: var(--text-muted); font-size: 0.85rem;';
+      emptyNote.innerHTML = `
+        <div style="font-size:1.6rem; margin-bottom:8px;">📂</div>
+        <div>이 디렉토리에 하위 폴더가 없습니다.</div>
+        <div style="font-size:0.75rem; margin-top:4px;">현재 디렉토리를 열려면 하단의 <strong>[📂 이 디렉토리 선택]</strong> 버튼을 누르세요.</div>
+      `;
+      gridEl.appendChild(emptyNote);
+      return;
     }
 
     currentFsData.subdirs.forEach(sd => {
-      const item = document.createElement('div');
-      item.className = 'explorer-item';
-      item.innerHTML = `
-        <span style="display:flex; align-items:center; gap:6px;">
-          📁 ${sd.name}
-        </span>
-        ${sd.is_yolo_dataset ? '<span class="explorer-item-badge">YOLO</span>' : ''}
+      const tile = document.createElement('div');
+      tile.className = 'folder-tile';
+      
+      let badgesHtml = '';
+      if (sd.is_yolo_dataset) {
+        badgesHtml += '<span class="tile-badge tile-badge-yolo">🏷️ YOLO Dataset</span>';
+      }
+      if (sd.has_yaml) {
+        badgesHtml += '<span class="tile-badge tile-badge-yolo">data.yaml</span>';
+      }
+      if (sd.has_images) {
+        badgesHtml += '<span class="tile-badge tile-badge-imgs">🖼️ 이미지</span>';
+      }
+
+      tile.innerHTML = `
+        <div class="folder-tile-top">
+          <span class="folder-tile-icon">${sd.is_yolo_dataset ? '🏷️' : '📁'}</span>
+          <div class="folder-tile-name" title="${sd.name}">${sd.name}</div>
+        </div>
+        <div class="folder-tile-badges">
+          ${badgesHtml || '<span class="tile-badge" style="background:#282828; color:#777;">폴더</span>'}
+        </div>
       `;
-      item.ondblclick = () => browseFs(sd.path);
-      item.onclick = () => {
-        document.querySelectorAll('.explorer-item').forEach(el => el.classList.remove('active'));
-        item.classList.add('active');
+
+      tile.onclick = () => {
+        document.querySelectorAll('.folder-tile').forEach(el => el.classList.remove('active'));
+        tile.classList.add('active');
         selectedFsPath = sd.path;
         inspectSubdir(sd.path);
       };
-      listEl.appendChild(item);
+
+      tile.ondblclick = () => {
+        browseFs(sd.path);
+      };
+
+      gridEl.appendChild(tile);
     });
   } catch (err) {}
 }
@@ -1100,37 +1597,41 @@ async function inspectSubdir(path) {
   try {
     const res = await fetch(`/api/browse_fs?path=${encodeURIComponent(path)}`);
     const data = await res.json();
-    updateFsPreview(data);
+    updateFsFooter(data);
   } catch (err) {}
 }
 
-function updateFsPreview(data) {
-  const nameEl = document.getElementById('expPreviewName');
-  const detailsEl = document.getElementById('expPreviewDetails');
+function updateFsFooter(data) {
+  const pathEl = document.getElementById('expFooterPath');
+  const descEl = document.getElementById('expFooterDesc');
   const btnInit = document.getElementById('btnInitAndOpenFolder');
 
   const p = data.current_path;
-  const name = p.split('/').pop() || p;
-  nameEl.textContent = `📁 ${name}`;
+  if (pathEl) pathEl.textContent = p;
 
-  detailsEl.innerHTML = `
-    경로: <span style="color:#8bb2eb; font-family:monospace;">${p}</span><br>
-    감지된 이미지: <strong>${data.raw_images_count}장</strong><br>
-    라벨 파일: <strong>${data.labels_count}개</strong><br>
-    data.yaml: <strong>${data.has_yaml ? '있음' : '없음'}</strong>
-  `;
+  if (descEl) {
+    if (data.is_yolo_dataset) {
+      descEl.innerHTML = `<span style="color:#4ade80; font-weight:600;">✅ YOLO 데이터셋 감지됨</span> (이미지: <strong>${data.raw_images_count}장</strong>, 라벨: <strong>${data.labels_count}개</strong>, data.yaml: <strong>${data.has_yaml ? '있음' : '없음'}</strong>)`;
+    } else if (data.raw_images_count > 0 && data.labels_count === 0) {
+      descEl.innerHTML = `<span style="color:#f59e0b; font-weight:600;">⚠️ 이미지 파일 폴더 감지됨</span> (이미지: <strong>${data.raw_images_count}장</strong>, 라벨 없음) — YOLO 데이터셋 변환 가능`;
+    } else {
+      descEl.innerHTML = `<span>일반 디렉토리</span> (이미지: <strong>${data.raw_images_count}장</strong>, 라벨: <strong>${data.labels_count}개</strong>)`;
+    }
+  }
 
-  if (!data.is_yolo_dataset && data.raw_images_count > 0 && data.labels_count === 0) {
-    btnInit.style.display = 'flex';
-  } else {
-    btnInit.style.display = 'none';
+  if (btnInit) {
+    if (!data.is_yolo_dataset && data.raw_images_count > 0 && data.labels_count === 0) {
+      btnInit.style.display = 'inline-flex';
+    } else {
+      btnInit.style.display = 'none';
+    }
   }
 }
 
 async function confirmOpenFolder(initIfRaw = false) {
   if (!selectedFsPath) return;
   try {
-    showToast('폴더 데이터셋 여는 중...');
+    showToast('디렉토리 여는 중...');
     const res = await fetch('/api/open_folder', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -1142,7 +1643,7 @@ async function confirmOpenFolder(initIfRaw = false) {
     const data = await res.json();
     if (data.success) {
       closeFolderModal();
-      showToast('작업 폴더 로드 완료');
+      showToast('작업 디렉토리 열기 완료');
       await loadDatasetList();
     } else {
       alert(data.error || '폴더 열기 실패');
@@ -1161,6 +1662,15 @@ async function loadDatasetList() {
 
     const sel = document.getElementById('datasetSelect');
     sel.innerHTML = '';
+
+    const hasActive = datasets.some(d => d.is_active);
+    if (!hasActive) {
+      const emptyOpt = document.createElement('option');
+      emptyOpt.value = '';
+      emptyOpt.textContent = '선택된 디렉토리 없음';
+      emptyOpt.selected = true;
+      sel.appendChild(emptyOpt);
+    }
 
     datasets.forEach(d => {
       const opt = document.createElement('option');
@@ -1193,15 +1703,71 @@ async function switchDataset(path) {
   } catch (err) {}
 }
 
+function clearCanvasAndInspector() {
+  currentImgIndex = -1;
+  currentAnnotation = null;
+  currentImageBitmap = null;
+  drawingPoints = [];
+  selectedPolyIndex = -1;
+  selectedVertexIndex = -1;
+  if (canvas && ctx) {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+  }
+  const selDetails = document.getElementById('selPolyDetails');
+  if (selDetails) selDetails.style.display = 'none';
+  const selBadge = document.getElementById('selPolyBadge');
+  if (selBadge) selBadge.textContent = '없음';
+  const polyList = document.getElementById('polyLayersList');
+  if (polyList) polyList.innerHTML = '<div style="padding:10px; color:var(--text-muted); font-size:0.75rem;">폴리곤 없음</div>';
+  const polyCount = document.getElementById('polyCountBadge');
+  if (polyCount) polyCount.textContent = '0개';
+}
+
 async function refreshActiveDataset() {
   try {
     const res = await fetch('/api/dataset/current');
     currentDataset = await res.json();
     classes = currentDataset.classes || {};
 
-    document.getElementById('dsSummaryTitle').textContent = currentDataset.name;
-    document.getElementById('dsSummaryStats').textContent = `${currentDataset.total_images.toLocaleString()}장 / ${Object.keys(classes).length}cls`;
-    document.getElementById('statusWorkspacePath').textContent = currentDataset.path;
+    const hasDataset = !!(currentDataset && currentDataset.path);
+    const titleEl = document.getElementById('dsSummaryTitle');
+    const statsEl = document.getElementById('dsSummaryStats');
+    const pathEl = document.getElementById('statusWorkspacePath');
+    const noDirOverlay = document.getElementById('noDirOverlay');
+
+    if (!hasDataset) {
+      if (titleEl) titleEl.textContent = '선택된 디렉토리 없음';
+      if (statsEl) statsEl.textContent = '0장 / 0cls';
+      if (pathEl) pathEl.textContent = '선택된 디렉토리 없음';
+      if (noDirOverlay) noDirOverlay.style.display = 'flex';
+
+      renderClassPalette();
+      populateClassDropdowns();
+
+      // Clear image list & canvas
+      const imgListEl = document.getElementById('imageList');
+      if (imgListEl) {
+        imgListEl.innerHTML = `
+          <div style="padding:32px 14px; text-align:center; color:var(--text-muted); font-size:0.8rem; line-height:1.5;">
+            선택된 디렉토리가 없습니다.<br><br>
+            <button class="tool-btn" style="display:inline-flex; margin:0 auto; background:var(--accent); color:#fff; font-weight:600;" onclick="openFolderModal()">
+              📂 작업 디렉토리 선택
+            </button>
+          </div>
+        `;
+      }
+      document.getElementById('imgCountBadge').textContent = '0장';
+      clearCanvasAndInspector();
+
+      // 디렉토리가 선택되지 않은 채 처음 진입 시 자동으로 모달 오픈!
+      openFolderModal();
+      return;
+    }
+
+    if (noDirOverlay) noDirOverlay.style.display = 'none';
+    if (titleEl) titleEl.textContent = currentDataset.name;
+    if (statsEl) statsEl.textContent = `${currentDataset.total_images.toLocaleString()}장 / ${Object.keys(classes).length}cls`;
+    if (pathEl) pathEl.textContent = currentDataset.path;
 
     renderClassPalette();
     populateClassDropdowns();
