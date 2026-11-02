@@ -459,21 +459,61 @@
     font-size: 0.66rem; color: var(--text-dim); display: flex; justify-content: space-between; align-items: center;
   }
 
+  /* 작업 화면의 정보 계층과 주요 동작 */
+  :root { --bg-app:#10151c; --bg-header:#151c25; --bg-sidebar:#151c25; --bg-panel:#18212b; --bg-card:#222e3a; --bg-card-sub:#18212b; --bg-input:#111922; --bg-hover:#2a3947; --border:#303e4c; --accent-cyan:#50d4b0; --accent-cyan-hover:#7be7c9; }
+  .studio-header { height:58px; padding:0 18px; gap:16px; }
+  .header-left { min-width:0; gap:12px; }
+  .header-logo-badge { width:34px; height:34px; border-radius:10px; background:#50d4b0; color:#10241f; box-shadow:none; }
+  .header-task-title { gap:9px; white-space:nowrap; }
+  .header-task-pill { max-width:220px; overflow:hidden; text-overflow:ellipsis; background:#243a39; color:#a7ead6; border-color:#355e54; padding:5px 9px; }
+  .header-ai-group { margin-left:8px; }
+  .header-ai-box, .header-btn-recommend { height:34px; border-radius:7px; }
+  .header-btn-recommend { background:#253c39; color:#a7ead6; border-color:#3c6d60; }
+  .header-icon-btn { width:36px; height:36px; border-radius:8px; }
+  .studio-vtoolbar { width:56px; padding-top:12px; gap:7px; }
+  .vtool-btn { width:38px; height:38px; border-radius:8px; }
+  .vtool-btn.active { background:#284b42; color:#a7ead6; border-color:#50d4b0; box-shadow:none; }
+  .studio-viewport, .canvas-container { background:#202b35; }
+  .studio-right-panel { width:350px; }
+  .panel-card-header { padding:12px 14px; background:#1c2833; font-size:.8rem; letter-spacing:0; }
+  .img-search-bar { padding:10px 12px; gap:8px; }
+  .img-search-input, .img-filter-select { min-height:32px; border-radius:6px; }
+  .image-list-viewport { height:210px; padding:8px; background:#141d26; }
+  .img-list-item, .object-row { border-radius:6px; }
+  .img-list-item.active { background:#28453f; border-color:#50d4b0; }
+  .object-table-wrap { background:#141d26; padding:8px; }
+  .studio-bottombar { min-height:52px; padding-left:16px; padding-right:16px; }
+  .btn-complete { border-radius:7px; background:#50d4b0; box-shadow:none; }
+  .no-dir-overlay { background:rgba(16,23,31,.78); }
+  .no-dir-card { max-width:520px; padding:38px; border:1px solid #3a4a57; border-radius:16px; background:#1a2631; box-shadow:0 20px 60px rgba(0,0,0,.3); }
+  .no-dir-icon { font-size:2rem; }
+  .no-dir-title { font-size:1.35rem; }
+  .no-dir-desc { line-height:1.7; }
+  .no-dir-actions .tool-btn { min-height:42px; padding:0 16px; border-radius:7px; }
+  .tool-btn-primary { background:#50d4b0; }
+  .tool-btn-primary:hover { color:#0b1715; }
+  .tool-btn[style*="background:var(--accent)"] { color:#0b1715 !important; }
+  .tool-btn[style*="background:var(--accent)"]:hover { background:#7be7c9 !important; }
+  /* WebKit의 기본 선택 상자와 동일한 밝은 배경에 어두운 글자를 사용 */
+  select, select:disabled { color:#18212b !important; -webkit-text-fill-color:#18212b; background:#fff !important; opacity:1; }
+  select option { color:#18212b !important; background:#fff !important; -webkit-text-fill-color:#18212b; }
+  button:focus-visible, select:focus-visible, input:focus-visible { outline:2px solid #8be7cf; outline-offset:2px; }
+  @media (max-width: 1000px) { .header-task-title > span:first-child, .header-ai-badge { display:none; } .header-ai-select { max-width:140px; } .studio-right-panel { width:300px; } }
 </style>
 </head>
 <body>
 <header class="studio-header">
   <div class="header-left">
-    <div class="header-logo-badge" onclick="openFolderModal()" title="Dataset Studio">M</div>
+    <div class="header-logo-badge" onclick="openFolderModal()" title="Dataset Studio">D</div>
     <div class="header-task-title">
-      <span style="color:#94a3b8; font-size:0.75rem;">[Studio]</span>
-      <span style="color:#64748b;">TASK :</span>
+      <span style="color:#e2e8f0; font-size:0.85rem;">데이터셋 스튜디오</span>
+      <span style="color:#94a3b8;">작업 폴더</span>
       <span id="headerTaskPill" class="header-task-pill">선택된 디렉토리 없음</span>
     </div>
 
     <!-- AI Model Selector & Recommend Trigger (Prioritizing in-folder models) -->
     <div class="header-ai-group">
-      <div class="header-ai-box" title="AI 폴리곤 추천에 사용할 모델 선택">
+      <div class="header-ai-box" style="display:none" title="AI 폴리곤 추천에 사용할 모델 선택">
         <span class="header-ai-badge" id="headerAiFolderBadge">🤖 AI 모델</span>
         <select id="headerAiModelSelect" class="header-ai-select" onchange="onAiModelChanged()">
           <option value="">모델 탐색 중...</option>
@@ -482,6 +522,7 @@
       <button class="header-btn-recommend" id="headerRecommendBtn" onclick="triggerAiRecommend()" title="현재 이미지 AI 폴리곤 추천 실행 [단축키: R]">
         🪄 AI 추천 [R]
       </button>
+      <button class="tool-btn" onclick="openModelMapping('image')">클래스별 모델 설정</button>
     </div>
   </div>
 
@@ -531,7 +572,7 @@
         <div id="noDirOverlay" class="no-dir-overlay">
           <div class="no-dir-card">
             <div class="no-dir-icon">📂</div>
-            <div class="no-dir-title">선택된 작업 디렉토리가 없습니다</div>
+            <div class="no-dir-title">데이터셋 작업 시작하기</div>
             <div class="no-dir-desc">
               라벨링 및 데이터셋 검수를 시작하려면 작업 디렉토리를 열거나 새 데이터셋을 생성하세요.
             </div>
@@ -561,24 +602,24 @@
     <!-- Section 1: IMAGE (Thumbnail Gallery List) -->
     <div class="panel-card-section">
       <div class="panel-card-header">
-        <span>IMAGE</span>
+        <span>이미지 목록</span>
         <span id="headerImgBadge" class="panel-card-badge">0-0 [0]</span>
       </div>
       <div class="img-search-bar">
-        <input type="text" id="searchInput" class="img-search-input" placeholder="Search image (Enter)..." onkeydown="if(event.key==='Enter')loadImages()">
+        <input type="text" id="searchInput" class="img-search-input" placeholder="이미지 검색 후 Enter" onkeydown="if(event.key==='Enter')loadImages()">
         <div class="img-filter-row" style="grid-template-columns: 1fr 1fr 1fr;">
           <select id="filterClass" class="img-filter-select" onchange="loadImages()">
-            <option value="">All Class</option>
+            <option value="">전체 클래스</option>
           </select>
           <select id="filterSplit" class="img-filter-select" onchange="loadImages()">
-            <option value="all">All Split</option>
+            <option value="all">전체 분할</option>
             <option value="train">Train</option>
             <option value="val">Val</option>
           </select>
           <select id="filterStatus" class="img-filter-select" onchange="loadImages()">
-            <option value="all">All Status</option>
-            <option value="edited">Edited</option>
-            <option value="unedited">Unedited</option>
+            <option value="all">전체 상태</option>
+            <option value="edited">수정됨</option>
+            <option value="unedited">미수정</option>
           </select>
         </div>
       </div>
@@ -590,7 +631,7 @@
     <!-- Section 2: OBJECT (Polygon & Box Layers Table) -->
     <div class="panel-card-section">
       <div class="panel-card-header">
-        <span>OBJECT</span>
+        <span>객체 목록</span>
         <span id="polyCountBadge" class="panel-card-badge">0</span>
       </div>
       <div class="object-table-wrap" id="polyLayersList">
@@ -601,19 +642,19 @@
     <!-- Section 3: OBJECT TAG (Selected Object Inspector & Class Dropdown) -->
     <div class="panel-card-section">
       <div class="panel-card-header">
-        <span>OBJECT TAG</span>
+        <span>선택한 객체</span>
         <span id="selPolyBadge" class="panel-card-badge">None</span>
       </div>
       <div class="tag-section-body">
         <select id="drawClassSelect" style="display:none;"></select>
         <div class="tag-field-row">
-          <span class="tag-label">Class</span>
+          <span class="tag-label">클래스</span>
           <select id="selPolyClassPicker" class="tag-value-select" onchange="changeSelectedPolyClass(this.value)">
             <!-- Populated dynamically -->
           </select>
         </div>
         <div class="tag-field-row">
-          <span class="tag-label">Points / Size</span>
+          <span class="tag-label">점 / 크기</span>
           <span id="selPolySize" style="font-family:monospace; color:#e2e8f0; font-size:0.75rem;">-</span>
         </div>
         <div id="selPolyWarning" style="display:none; color:#ef4444; background:rgba(239,68,68,0.12); border:1px solid rgba(239,68,68,0.3); padding:4px 8px; border-radius:4px; font-size:0.72rem; font-weight:600; line-height:1.3;">
@@ -630,7 +671,7 @@
     <!-- Section 4: CLASS PALETTE (Quick Color Shortcuts) -->
     <div class="panel-card-section" style="border-bottom:none;">
       <div class="panel-card-header">
-        <span>CLASS PALETTE</span>
+        <span>클래스 팔레트</span>
         <span id="clsCountBadge" class="panel-card-badge">0 classes</span>
       </div>
       <div id="classPalette" class="class-palette-grid">
@@ -653,9 +694,9 @@
   </div>
 
   <div class="bottom-right">
-    <button class="btn-save-bottom" onclick="saveCurrent()" title="저장 [S / Ctrl+S]">💾 Save</button>
+    <button class="btn-save-bottom" onclick="saveCurrent()" title="저장 [S / Ctrl+S]">💾 저장</button>
     <button class="btn-complete" onclick="completeAndNext()" title="현재 이미지 검수 완료 및 다음 사진 이동 [Enter]">
-      <span>COMPLETE</span>
+      <span>검수 완료 · 다음</span>
       <span>▶</span>
     </button>
   </div>
@@ -678,11 +719,11 @@
         <div>
           <div class="explorer-section-title" style="margin-bottom:6px;">빠른 바로가기</div>
           <div class="explorer-nav-list">
-            <div class="explorer-nav-item" onclick="browseFs('/home/yg-gulbi/workspace')">
+            <div class="explorer-nav-item" onclick="browseFs(studioWorkspacePath)">
               <span>💼</span>
               <span>Workspace</span>
             </div>
-            <div class="explorer-nav-item" onclick="browseFs('/home/yg-gulbi')">
+            <div class="explorer-nav-item" onclick="browseFs(studioHomePath)">
               <span>🏠</span>
               <span>Home</span>
             </div>
@@ -713,7 +754,7 @@
             <span>✏️ 직접 입력</span>
           </button>
 
-          <input type="text" id="explorerPathInput" class="explorer-path-direct-input" placeholder="/home/yg-gulbi/..." onkeydown="if(event.key==='Enter'){browseFs(this.value); toggleDirectPathInput();}">
+          <input type="text" id="explorerPathInput" class="explorer-path-direct-input" placeholder="폴더 경로 입력" onkeydown="if(event.key==='Enter'){browseFs(this.value); toggleDirectPathInput();}">
         </div>
 
         <!-- Subdirectories Folder Grid -->
@@ -767,14 +808,15 @@
         <div class="form-row-2">
           <div class="form-group">
             <label class="form-label">소스 데이터셋</label>
-            <select id="aiSourceDataset" class="form-control"></select>
+            <select id="aiSourceDataset" class="form-control" onchange="bulkModelMappings = []"></select>
           </div>
           <div class="form-group">
             <div style="display:flex; justify-content:space-between; align-items:center;">
-              <label class="form-label">YOLO 모델 가중치 (.pt)</label>
+              <label class="form-label">대상 클래스별 모델</label>
               <span id="aiModelBadge" style="font-size:0.68rem; color:#60a5fa; font-weight:700;"></span>
             </div>
-            <select id="aiModelWeight" class="form-control" onchange="onModelSelectChange()"></select>
+            <select id="aiModelWeight" class="form-control" style="display:none" onchange="onModelSelectChange()"></select>
+            <button class="tool-btn" onclick="openModelMapping('bulk')">클래스별 모델 설정</button>
             <div id="aiModelRecommendInfo" style="display:none; font-size:0.72rem; color:#93c5fd; background:rgba(59,130,246,0.12); border:1px solid rgba(59,130,246,0.25); padding:5px 8px; border-radius:4px; margin-top:4px; line-height:1.3;"></div>
           </div>
         </div>
@@ -902,6 +944,16 @@
   </div>
 </div>
 
+<div id="modelMappingModal" class="modal-backdrop">
+  <div class="modal-window">
+    <div class="modal-header"><span>클래스별 모델 설정</span><button class="modal-close" onclick="document.getElementById('modelMappingModal').classList.remove('open')">&times;</button></div>
+    <div class="modal-body">
+      <p style="color:var(--text-muted);line-height:1.6">각 대상 클래스에 모델과 해당 모델의 클래스를 선택하세요. 선택하지 않은 클래스는 생성하지 않습니다.</p>
+      <div id="modelMappingRows" style="display:flex;flex-direction:column;gap:10px;margin:14px 0"></div>
+      <button class="tool-btn tool-btn-primary" onclick="saveModelMapping()">설정 적용</button>
+    </div>
+  </div>
+</div>
 <div id="toast" class="toast"></div>
 
 
@@ -917,6 +969,49 @@ let currentImgIndex = -1;
 let currentAnnotation = null;
 let currentImageBitmap = null;
 let headerAvailableModels = [];
+let imageModelMappings = [], bulkModelMappings = [], mappingMode = '', mappingTargets = [];
+
+function openModelMapping(mode) {
+  mappingMode = mode;
+  const source = datasets.find(d => d.path === document.getElementById('aiSourceDataset').value);
+  mappingTargets = mode === 'image'
+    ? Object.entries(classes).map(([id, c]) => ({id: Number(id), name: c.name, label: c.label_ko || c.name}))
+    : (source?.class_names || []).map((name, id) => ({id, name, label: name}));
+  const models = mode === 'image' ? headerAvailableModels : availableModelsList;
+  if (!mappingTargets.length) return alert('대상 데이터셋의 클래스 정보가 없습니다. data.yaml을 확인하세요.');
+  if (!models.length) return alert('사용 가능한 모델이 없습니다.');
+  const saved = mode === 'image' ? imageModelMappings : bulkModelMappings;
+  const rows = document.getElementById('modelMappingRows');
+  rows.replaceChildren();
+  mappingTargets.forEach(target => {
+    const row = document.createElement('div');
+    const label = document.createElement('label');
+    label.className = 'form-label'; label.textContent = `[${target.id}] ${target.label}`;
+    const select = document.createElement('select'); select.className = 'form-control';
+    select.dataset.targetId = target.id;
+    select.add(new Option('사용하지 않음', ''));
+    models.forEach((model, mi) => (model.classes || []).forEach((name, ci) => {
+      const opt = new Option(`${model.filename} → ${name}`, `${mi}:${ci}`);
+      select.add(opt);
+      if (saved.some(m => m.target_id === target.id && m.model_path === model.path && m.model_class_id === model.class_ids[ci])) select.value = opt.value;
+    }));
+    row.append(label, select); rows.append(row);
+  });
+  document.getElementById('modelMappingModal').classList.add('open');
+}
+
+function saveModelMapping() {
+  const models = mappingMode === 'image' ? headerAvailableModels : availableModelsList;
+  const mappings = [...document.querySelectorAll('#modelMappingRows select')].filter(s => s.value).map(s => {
+    const [mi, ci] = s.value.split(':').map(Number);
+    return {target_id: Number(s.dataset.targetId), model_path: models[mi].path, model_class_id: models[mi].class_ids[ci]};
+  });
+  if (!mappings.length) return alert('하나 이상의 클래스를 선택하세요.');
+  if (new Set(mappings.map(m => `${m.model_path}:${m.model_class_id}`)).size !== mappings.length) return alert('같은 모델 클래스를 여러 대상 클래스에 연결할 수 없습니다.');
+  if (mappingMode === 'image') imageModelMappings = mappings; else bulkModelMappings = mappings;
+  document.getElementById('modelMappingModal').classList.remove('open');
+  showToast(`${mappings.length}개 클래스의 모델을 설정했습니다.`);
+}
 
 // Interaction & Mode
 let mode = 'select'; // 'select', 'draw'
@@ -937,6 +1032,8 @@ let spaceDown = false;
 // DOM Elements
 const canvas = document.getElementById('editorCanvas');
 const ctx = canvas.getContext('2d');
+const studioHomePath = {{ home_path | default('') | tojson }};
+const studioWorkspacePath = {{ workspace_path | default('') | tojson }};
 const workspace = document.getElementById('canvasWorkspace');
 const rulerH = document.getElementById('rulerHorizontal');
 const rulerV = document.getElementById('rulerVertical');
@@ -1075,7 +1172,7 @@ function openFolderModal(initialPath) {
   const modal = document.getElementById('folderModal');
   if (modal) modal.classList.add('open');
   loadRecentFolders();
-  const target = initialPath || (currentDataset && currentDataset.path) || '/home/yg-gulbi/workspace';
+  const target = initialPath || (currentDataset && currentDataset.path) || studioWorkspacePath;
   browseFs(target);
 }
 
@@ -1369,6 +1466,7 @@ async function switchDataset(path) {
     });
     const data = await res.json();
     if (data.success) {
+      imageModelMappings = [];
       showToast('데이터셋 전환 완료');
       await refreshActiveDataset();
     } else {
@@ -1562,6 +1660,7 @@ async function triggerAiRecommend() {
     showToast('⚠️ AI 추천을 실행할 이미지가 선택되지 않았습니다.');
     return;
   }
+  if (!imageModelMappings.length) return alert('먼저 클래스별 모델을 설정하세요.');
   const item = images[currentImgIndex];
   const splitPath = item.split === '.' ? item.filename : `${item.split}/${item.filename}`;
 
@@ -1578,12 +1677,12 @@ async function triggerAiRecommend() {
   showToast(`🤖 AI 폴리곤 추천 실행 중... (${item.filename})`);
 
   try {
-    const res = await fetch('/api/predict_polygons', {
+    const res = await fetch('/api/predict_polygons/multi', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         subpath: splitPath,
-        model_path: modelPath,
+        mappings: imageModelMappings,
         conf: 0.30
       })
     });
@@ -2820,7 +2919,8 @@ async function populateModalDropdowns() {
     if (availableModelsList.length > 0) {
       wSel.selectedIndex = recommendedOptIndex;
     }
-    onModelSelectChange();
+    document.getElementById('aiModelBadge').textContent = '';
+    document.getElementById('aiModelRecommendInfo').style.display = 'none';
   } catch (err) {
     console.error('populateModalDropdowns error:', err);
   }
@@ -2874,6 +2974,8 @@ async function startAiAutoLabeling() {
   const conf = parseFloat(document.getElementById('aiConfThres').value) || 0.5;
 
   if (!name) return alert('데이터셋 이름을 입력해주세요.');
+  if (!bulkModelMappings.length) return alert('먼저 클래스별 모델을 설정하세요.');
+  const sourceInfo = datasets.find(d => d.path === src);
 
   const res = await fetch('/api/dataset/create', {
     method: 'POST',
@@ -2882,7 +2984,8 @@ async function startAiAutoLabeling() {
       mode: 'ai_auto_label',
       name: name,
       source_dataset: src,
-      weight_path: weight,
+      mappings: bulkModelMappings,
+      target_classes: sourceInfo.class_names,
       conf_threshold: conf
     })
   });

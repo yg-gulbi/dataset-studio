@@ -49,11 +49,13 @@ def start_backend_server():
         return None
 
     env = os.environ.copy()
-    env["WORKSPACE_ROOT"] = str(PROJECT_ROOT)
+    env.setdefault("WORKSPACE_ROOT", str(PROJECT_ROOT))
     env["PYTHONPATH"] = f"{DIR}:{env.get('PYTHONPATH', '')}"
 
     server_script = DIR / "server.py"
-    log_file = open(PROJECT_ROOT / "studio_server.log", "a", encoding="utf-8")
+    data_dir = Path(env.get("DATASET_STUDIO_DATA_DIR", str(PROJECT_ROOT)))
+    data_dir.mkdir(parents=True, exist_ok=True)
+    log_file = open(data_dir / "studio_server.log", "a", encoding="utf-8")
     proc = subprocess.Popen(
         [sys.executable, str(server_script)],
         env=env,

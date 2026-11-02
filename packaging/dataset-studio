@@ -1,0 +1,9 @@
+#!/bin/sh
+set -e
+export DATASET_STUDIO_DATA_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/dataset-studio"
+export WORKSPACE_ROOT="$DATASET_STUDIO_DATA_DIR"
+export PYTHONNOUSERSITE=1
+mkdir -p "$DATASET_STUDIO_DATA_DIR"
+PORT=$(/opt/dataset-studio/venv/bin/python -c 'import socket; s=socket.socket(); s.bind(("127.0.0.1", 0)); print(s.getsockname()[1]); s.close()')
+export PORT
+exec /opt/dataset-studio/venv/bin/python /opt/dataset-studio/native_app.py

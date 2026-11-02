@@ -1,0 +1,9 @@
+Package: dataset-studio
+Version: 1.0.0
+Section: graphics
+Priority: optional
+Architecture: amd64
+Maintainer: Dataset Studio
+Depends: python3 (>= 3.12), python3 (<< 3.13), python3-venv, python3-gi, gir1.2-gtk-3.0, gir1.2-webkit2-4.1, libgl1, libglib2.0-0
+Description: Dataset Studio polygon labeling and AI-assisted dataset creation
+ Ubuntu 24.04 desktop application for dataset editing and YOLO segmentation.

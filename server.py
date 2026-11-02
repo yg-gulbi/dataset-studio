@@ -23,16 +23,18 @@ from PIL import Image
 from flask import Flask, request, jsonify, render_template, send_file, send_from_directory
 
 app = Flask(__name__, template_folder="templates", static_folder="static")
+app.config["TEMPLATES_AUTO_RELOAD"] = True
 
 # Workspace root & Config
 STUDIO_DIR = Path(__file__).resolve().parent
 WORKSPACE_ROOT = Path(os.environ.get("WORKSPACE_ROOT", str(STUDIO_DIR)))
+DATA_DIR = Path(os.environ.get("DATASET_STUDIO_DATA_DIR", str(STUDIO_DIR)))
 CONFIG_FILE = Path.home() / ".dataset_studio_config.json"
-PACKAGES_DIR = STUDIO_DIR / "packages"
+PACKAGES_DIR = DATA_DIR / "packages"
 PACKAGES_DIR.mkdir(parents=True, exist_ok=True)
 
 # Default base dataset (Default to STUDIO_DIR/datasets or WORKSPACE_ROOT)
-default_studio_ds = STUDIO_DIR / "datasets"
+default_studio_ds = DATA_DIR / "datasets"
 default_studio_ds.mkdir(parents=True, exist_ok=True)
 DEFAULT_DATASET = default_studio_ds
 
@@ -635,7 +637,7 @@ def discover_all_datasets():
     """Scan workspace and recent paths for all valid YOLO dataset directories."""
     candidates = []
     search_dirs = [
-        STUDIO_DIR / "datasets",
+        default_studio_ds,
         WORKSPACE_ROOT,
     ]
 
@@ -682,7 +684,9 @@ def discover_all_datasets():
                             if isinstance(names, list):
                                 class_names = names
                             elif isinstance(names, dict):
-                                class_names = [names[k] for k in sorted(names.keys())]
+                                keys = sorted(names, key=lambda k: int(k))
+                                if [int(k) for k in keys] == list(range(len(keys))):
+                                    class_names = [names[k] for k in keys]
                     except Exception:
                         pass
 
@@ -720,6 +724,7 @@ def get_weight_metadata(weight_path):
         return cached
 
     names_list = []
+    class_ids = []
     fitness = None
     epoch = None
     try:
@@ -738,15 +743,19 @@ def get_weight_metadata(weight_path):
                     fitness = None
 
             if isinstance(names, dict):
-                names_list = [str(v).strip() for k, v in sorted(names.items(), key=lambda x: int(x[0]) if str(x[0]).isdigit() else str(x[0]))]
+                pairs = sorted(((int(k), str(v).strip()) for k, v in names.items()), key=lambda x: x[0])
+                class_ids = [k for k, _ in pairs]
+                names_list = [v for _, v in pairs]
             elif isinstance(names, list):
                 names_list = [str(x).strip() for x in names]
+                class_ids = list(range(len(names_list)))
     except Exception:
         pass
 
     data = {
         "mtime": mtime,
         "names": names_list,
+        "class_ids": class_ids,
         "nc": len(names_list),
         "fitness": fitness,
         "epoch": epoch
@@ -868,6 +877,7 @@ def discover_available_weights(target_dataset_classes=None):
             "mtime": time.strftime("%Y-%m-%d %H:%M", time.localtime(wf.stat().st_mtime)),
             "num_classes": meta["nc"],
             "classes": model_classes,
+            "class_ids": meta.get('class_ids', []),
             "fitness": fitness,
             "epoch": epoch,
             "matched_classes": matched,
@@ -908,7 +918,7 @@ def discover_available_weights(target_dataset_classes=None):
 # =========================================================================
 @app.route("/")
 def index():
-    return render_template("index.html")
+    return render_template("index.html", home_path=str(Path.home()), workspace_path=str(WORKSPACE_ROOT))
 
 
 @app.route("/benchmark")
@@ -1088,10 +1098,11 @@ def predict_polygons():
 
     # 5. 추론 실행
     try:
+        import torch
         res = model.predict(
             source=str(img_path),
             conf=conf_thres,
-            device="cpu",
+            device="0" if torch.cuda.is_available() else "cpu",
             retina_masks=False,
             verbose=False,
         )[0]
@@ -1166,6 +1177,7 @@ def predict_polygons():
 
             polygons.append({
                 "id": len(polygons),
+                "model_class_id": int(m_cid),
                 "class_id": int(target_cid),
                 "class_name": cname,
                 "label_ko": label_ko,
@@ -1200,6 +1212,43 @@ def predict_polygons():
     })
 
 
+@app.route('/api/predict_polygons/multi', methods=['POST'])
+def predict_polygons_multi():
+    data = request.get_json() or {}
+    mappings = data.get('mappings') or []
+    if not mappings or len({m['target_id'] for m in mappings}) != len(mappings):
+        return jsonify({'success': False, 'error': '클래스마다 모델을 하나씩 선택하세요.'}), 400
+    if any(int(m['target_id']) not in state.classes for m in mappings):
+        return jsonify({'success': False, 'error': '대상 클래스가 변경되었습니다. 다시 선택하세요.'}), 400
+    polygons = []
+    filtered = 0
+    for path in dict.fromkeys(m['model_path'] for m in mappings):
+        if not Path(path).is_file():
+            return jsonify({'success': False, 'error': f'모델 파일을 찾을 수 없습니다: {path}'}), 400
+        with app.test_request_context(json={'subpath': data.get('subpath'), 'model_path': path, 'conf': data.get('conf', 0.3)}):
+            response = app.make_response(predict_polygons())
+        result = response.get_json()
+        if not result.get('success'):
+            return jsonify(result), response.status_code
+        filtered += result['filtered_noise_count']
+        model_mappings = {int(m['model_class_id']): int(m['target_id']) for m in mappings if m['model_path'] == path}
+        if len(model_mappings) != sum(m['model_path'] == path for m in mappings):
+            return jsonify({'success': False, 'error': '같은 모델 클래스를 여러 대상에 연결할 수 없습니다.'}), 400
+        model = LOADED_YOLO_MODELS[str(Path(path).resolve())]
+        if model.task != 'segment':
+            return jsonify({'success': False, 'error': f'폴리곤 마스크를 지원하는 세그멘테이션 모델이 아닙니다: {Path(path).name}'}), 400
+        if not all(mid in model.names for mid in model_mappings):
+            return jsonify({'success': False, 'error': f'모델 클래스 정보를 확인하세요: {Path(path).name}'}), 400
+        for poly in result['polygons']:
+            cid = model_mappings.get(poly['model_class_id'])
+            if cid is None:
+                continue
+            info = state.classes[cid]
+            poly.update(id=len(polygons), class_id=cid, class_name=info['name'], label_ko=info.get('label_ko', info['name']), color=info.get('color', '#00e5ff'))
+            polygons.append(poly)
+    return jsonify({'success': True, 'polygons': polygons, 'filtered_noise_count': filtered, 'model_name': f'{len(set(m["model_path"] for m in mappings))}개 모델', 'is_in_folder': False})
+
+
 # =========================================================================
 # Asynchronous Dataset Creation Jobs
 # =========================================================================
@@ -1220,7 +1269,7 @@ def create_dataset_job():
     elif state.dataset_path and state.dataset_path.exists():
         out_dir = state.dataset_path.parent / safe_name
     else:
-        out_dir = STUDIO_DIR / "datasets" / safe_name
+        out_dir = default_studio_ds / safe_name
 
     if out_dir.exists():
         return jsonify({"error": f"이미 존재하는 데이터셋 경로입니다: {out_dir}"}), 400
@@ -1228,7 +1277,8 @@ def create_dataset_job():
     tid = task_manager.create_task(f"데이터셋 생성: {safe_name} ({mode})")
 
     if mode == "ai_auto_label":
-        thread = threading.Thread(target=_worker_ai_auto_label, args=(tid, data, out_dir))
+        worker = _worker_multi_auto_label if data.get('mappings') else _worker_ai_auto_label
+        thread = threading.Thread(target=worker, args=(tid, data, out_dir))
     elif mode == "filter_clone":
         thread = threading.Thread(target=_worker_filter_clone, args=(tid, data, out_dir))
     elif mode == "empty":
@@ -1363,15 +1413,80 @@ def _worker_filter_clone(tid, data, out_dir):
         task_manager.update_task(tid, status="failed", error=str(e))
 
 
+def _worker_multi_auto_label(tid, data, out_dir):
+    try:
+        import torch
+        from ultralytics import YOLO
+        source = Path(data['source_dataset'])
+        mappings = data['mappings']
+        names = data['target_classes']
+        if not source.is_dir() or not names or len({int(m['target_id']) for m in mappings}) != len(mappings):
+            raise ValueError('소스 데이터셋과 클래스별 모델 설정을 확인하세요.')
+        if any(int(m['target_id']) < 0 or int(m['target_id']) >= len(names) for m in mappings):
+            raise ValueError('대상 클래스가 변경되었습니다. 다시 설정하세요.')
+        models = {}
+        for mapping in mappings:
+            path = mapping['model_path']
+            if not Path(path).is_file():
+                raise ValueError(f'모델 파일을 찾을 수 없습니다: {path}')
+            if path not in models:
+                models[path] = YOLO(path)
+            if models[path].task != 'segment':
+                raise ValueError(f'세그멘테이션 모델이 아닙니다: {path}')
+            if int(mapping['model_class_id']) not in models[path].names:
+                raise ValueError(f'모델 클래스를 찾을 수 없습니다: {path}')
+        pairs = [(m['model_path'], int(m['model_class_id'])) for m in mappings]
+        if len(set(pairs)) != len(pairs):
+            raise ValueError('같은 모델 클래스를 여러 대상에 연결할 수 없습니다.')
+        for split in ('train', 'val'):
+            (out_dir / 'images' / split).mkdir(parents=True, exist_ok=True)
+            (out_dir / 'labels' / split).mkdir(parents=True, exist_ok=True)
+        records = [(split, p) for split in ('train', 'val') for p in sorted((source / 'images' / split).glob('*')) if p.suffix in IMAGE_EXTS]
+        if not records:
+            records = [('train', p) for p in sorted((source / 'images').glob('*')) if p.suffix in IMAGE_EXTS]
+        if not records:
+            raise ValueError('소스 데이터셋에 이미지가 없습니다.')
+        device = '0' if torch.cuda.is_available() else 'cpu'
+        task_manager.update_task(tid, status='running', progress=5, total=len(records))
+        task_manager.log(tid, f'{len(models)}개 모델로 {len(records)}장 처리 시작 ({device})')
+        for index, (split, image_path) in enumerate(records):
+            lines = []
+            for path, model in models.items():
+                model_map = {int(m['model_class_id']): int(m['target_id']) for m in mappings if m['model_path'] == path}
+                result = model.predict(str(image_path), imgsz=640, conf=float(data.get('conf_threshold', 0.5)), device=device, retina_masks=False, verbose=False)[0]
+                if result.masks is None or result.boxes is None:
+                    continue
+                for model_id, points in zip(result.boxes.cls.cpu().numpy().astype(int), result.masks.xyn):
+                    if int(model_id) not in model_map or len(points) < 3:
+                        continue
+                    pts = np.asarray(points, dtype=np.float32) * 1000.0
+                    approx = cv2.approxPolyDP(pts, 0.0015 * cv2.arcLength(pts, True), True)
+                    if len(approx) < 3:
+                        approx = pts
+                    coords = np.clip(approx.reshape(-1, 2) / 1000.0, 0, 1).flatten()
+                    lines.append(f"{model_map[int(model_id)]} " + ' '.join(f'{v:.6f}' for v in coords))
+            shutil.copy2(image_path, out_dir / 'images' / split / image_path.name)
+            (out_dir / 'labels' / split / f'{image_path.stem}.txt').write_text('\n'.join(lines) + ('\n' if lines else ''), encoding='utf-8')
+            task_manager.update_task(tid, progress=int(5 + 90 * (index + 1) / len(records)))
+        with open(out_dir / 'data.yaml', 'w', encoding='utf-8') as f:
+            yaml.safe_dump({'path': str(out_dir), 'train': 'images/train', 'val': 'images/val', 'nc': len(names), 'names': names}, f, sort_keys=False, allow_unicode=True)
+        task_manager.log(tid, f'완료: {len(records)}장')
+        task_manager.update_task(tid, status='success', progress=100, result={'path': str(out_dir)})
+    except Exception as e:
+        task_manager.log(tid, f'❌ 추론 중 오류 발생: {e}')
+        task_manager.update_task(tid, status='failed', error=str(e))
+
+
 def _worker_ai_auto_label(tid, data, out_dir):
     try:
+        import torch
         from ultralytics import YOLO
 
         source_dataset = Path(data.get("source_dataset", str(state.dataset_path)))
         weight_path = Path(data.get("weight_path"))
         conf_thres = float(data.get("conf_threshold", 0.50))
         batch_size = int(data.get("batch_size", 16))
-        device = data.get("device", "0")
+        device = data.get("device") or ("0" if torch.cuda.is_available() else "cpu")
 
         task_manager.update_task(tid, status="running", progress=5)
         task_manager.log(tid, f"AI 자동 의사라벨 생성 시작 (모델: {weight_path.name}, Conf: {conf_thres})")

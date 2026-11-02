@@ -17,6 +17,7 @@ studio_server.log
 
 # Data & Packages
 packages/
+dist/
 datasets/
 labels_backup/
 excluded_images/

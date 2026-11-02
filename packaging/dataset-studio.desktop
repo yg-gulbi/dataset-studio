@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=데이터셋 구축 스튜디오
+Comment=Dataset labeling and AI-assisted creation
+Exec=dataset-studio
+Icon=dataset-studio
+Terminal=false
+StartupWMClass=dataset-studio
+Categories=Development;Graphics;Science;

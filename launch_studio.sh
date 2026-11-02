@@ -8,7 +8,8 @@
 set -e
 
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
-PORT=${PORT:-8765}
+PORT=${PORT:-$(python3 -c 'import socket; s=socket.socket(); s.bind(("127.0.0.1", 0)); print(s.getsockname()[1]); s.close()')}
+export PORT
 HOST="127.0.0.1"
 TARGET_DIR="$1"
 
